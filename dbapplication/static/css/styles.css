@@ -344,3 +344,49 @@ footer .social-icons a:hover {
         justify-content: center;
     }
 }
+
+/* static/css/styles.css */
+
+/* =====================================
+   Filter Controls Styles
+   ===================================== */
+   .filter-controls .btn {
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.filter-controls .btn.active {
+    background-color: #007bff;
+    color: #ffffff;
+}
+
+/* Hover Effects for Filter Buttons */
+.filter-controls .btn:hover {
+    background-color: #0056b3;
+    color: #ffffff;
+}
+
+/* =====================================
+   Item Block Hover Effects
+   ===================================== */
+.item-block .card:hover {
+    transform: translateY(-5px);
+    transition: transform 0.2s;
+}
+
+/* =====================================
+   Category Headings Styles
+   ===================================== */
+.category-section h3 {
+    color: #343a40;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 5px;
+}
+
+/* =====================================
+   Responsive Image Handling
+   ===================================== */
+@media (max-width: 768px) {
+    .item-block .card-img-top {
+        height: 150px;
+    }
+}

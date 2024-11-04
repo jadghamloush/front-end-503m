@@ -11,6 +11,44 @@ from models import (
 )
 
 def register_routes(app, db,bcrypt):
+
+    # app.py
+
+    def get_items_for_gender(gender):
+        """
+        Fetches all items for the specified gender across all subcategories.
+        Returns a list of dictionaries containing item details.
+        """
+        items = []
+        
+        # Define a list of tuples with subcategory models and their category names
+        subcategories = [
+            (FootwearSubCategory, 'Footwear'),
+            (ActivewearSubCategory, 'Activewear Tops'),
+            (BottomsSubCategory, 'Bottoms'),
+            (OuterwearSubCategory, 'Outerwear'),
+            (RecoverySubCategory, 'Recovery & Wellness'),
+            (AccessoriesSubCategory, 'Accessories'),
+            (SwimwearSubCategory, 'Swimwear'),
+            (CompressionSubCategory, 'Compression Wear'),
+            (SpecialtySportswearSubCategory, 'Specialty Sportswear'),
+            (ProtectiveGearSubCategory, 'Protective Gear')
+        ]
+        
+        for model, category in subcategories:
+            queried_items = model.query.filter_by(for_gender=gender).all()
+            for item in queried_items:
+                items.append({
+                    'category': category,
+                    'type': item.type,
+                    'price': item.price,
+                    'size': item.size,
+                    'quantity': item.quantity,
+                    'image': f"{category.lower().replace(' & ', '_').replace(' ', '_')}/{item.type.replace(' ', '_').lower()}.jpg"
+                })
+        
+        return items
+
     
     @app.route('/', methods = ['GET', 'POST'])
     def index():
@@ -187,31 +225,92 @@ def register_routes(app, db,bcrypt):
         specialty_items = SpecialtySportswearSubCategory.query.filter_by(for_gender='Men').all()
         protective_gear_items = ProtectiveGearSubCategory.query.filter_by(for_gender='Men').all()
         
-        men_items = {
-            'Footwear': footwear_items,
-            'Activewear Tops': activewear_items,
-            'Bottoms': bottoms_items,
-            'Outerwear': outerwear_items,
-            'Recovery & Wellness': recovery_items,
-            'Accessories': accessories_items,
-            'Swimwear': swimwear_items,
-            'Compression Wear': compression_items,
-            'Specialty Sportswear': specialty_items,
-            'Protective Gear': protective_gear_items
-        }
+        men_items = []
         
-        return render_template('men.html', men_items=men_items)
+        def append_items(items, category):
+            for item in items:
+                men_items.append({
+                    'category': category,
+                    'type': item.type,
+                    'price': item.price,
+                    'size': item.size,
+                    'quantity': item.quantity,
+                    'image': f"{category.lower().replace(' & ', '_').replace(' ', '_')}/{item.type.replace(' ', '_').lower()}.jpg"
+                })
+        
+        append_items(footwear_items, 'Footwear')
+        append_items(activewear_items, 'Activewear Tops')
+        append_items(bottoms_items, 'Bottoms')
+        append_items(outerwear_items, 'Outerwear')
+        append_items(recovery_items, 'Recovery & Wellness')
+        append_items(accessories_items, 'Accessories')
+        append_items(swimwear_items, 'Swimwear')
+        append_items(compression_items, 'Compression Wear')
+        append_items(specialty_items, 'Specialty Sportswear')
+        append_items(protective_gear_items, 'Protective Gear')
+        
+        main_categories = [
+            'All',
+            'Footwear',
+            'Activewear Tops',
+            'Bottoms',
+            'Outerwear',
+            'Recovery & Wellness',
+            'Accessories',
+            'Swimwear',
+            'Compression Wear',
+            'Specialty Sportswear',
+            'Protective Gear'
+        ]
+        
+        return render_template('men.html', men_items=men_items, main_categories=main_categories)
+
 
 
     @app.route('/women')
-    @login_required
+    @login_required  # Optional: Remove if you want the page to be publicly accessible
     def women():
-        return render_template('women.html')
+        women_items = get_items_for_gender('Women')
+        
+        # Define main categories for filtering, including 'All'
+        main_categories = [
+            'All',
+            'Footwear',
+            'Activewear Tops',
+            'Bottoms',
+            'Outerwear',
+            'Recovery & Wellness',
+            'Accessories',
+            'Swimwear',
+            'Compression Wear',
+            'Specialty Sportswear',
+            'Protective Gear'
+        ]
+        
+        return render_template('women.html', items=women_items, categories=main_categories)
+
 
     @app.route('/kids')
-    @login_required
+    @login_required  # Optional: Remove if you want the page to be publicly accessible
     def kids():
-        return render_template('kids.html')
+        kids_items = get_items_for_gender('Kids')
+        
+        # Define main categories for filtering, including 'All'
+        main_categories = [
+            'All',
+            'Footwear',
+            'Activewear Tops',
+            'Bottoms',
+            'Outerwear',
+            'Recovery & Wellness',
+            'Accessories',
+            'Swimwear',
+            'Compression Wear',
+            'Specialty Sportswear',
+            'Protective Gear'
+        ]
+        
+        return render_template('kids.html', items=kids_items, categories=main_categories)
     
     
     # @app.route('/', methods =['GET', 'POST'])

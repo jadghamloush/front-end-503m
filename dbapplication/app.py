@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_bcrypt import Bcrypt
+from flask_cors import CORS
 
 db = SQLAlchemy()
 
@@ -11,6 +12,7 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///C:/Users/jad/Desktop/AUB/Year-4/EECE-503m/project/front-end-503m/dbapplication/testdb.db'
     app.secret_key = 'Some Key'
     db.init_app(app)
+    CORS(app, supports_credentials=True)
     login_manager = LoginManager()
     login_manager.init_app(app)
     

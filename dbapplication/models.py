@@ -1,5 +1,37 @@
 from app import db
 from flask_login import UserMixin
+from datetime import datetime
+
+class Invoice(db.Model):
+    __tablename__ = 'invoices'
+    
+    invoice_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.uid'), nullable=False)
+    product_id = db.Column(db.Integer, nullable=False)
+    product_type = db.Column(db.String, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    price = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String, nullable=False)  # e.g., 'Pending', 'Paid', 'Shipped'
+
+    user = db.relationship('User', backref='invoices')
+
+    def __repr__(self):
+        return f"<Invoice #{self.invoice_id} - User: {self.user.username}, Product ID: {self.product_id}, Quantity: {self.quantity}, Date: {self.date}, Price: {self.price}, Status: {self.status}>"
+
+
+class Report(db.Model):
+    __tablename__ = 'reports'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    most_popular_product_id = db.Column(db.Integer, nullable=False)
+    most_popular_product_type = db.Column(db.String, nullable=False)
+    future_demand = db.Column(db.String, nullable=True)  # Could be a text description or JSON data
+
+    def __repr__(self):
+        return f"<Report #{self.id} - Most Popular Product ID: {self.most_popular_product_id}, Type: {self.most_popular_product_type}, Future Demand: {self.future_demand}>"
+
+        
 
 class User(db.Model,UserMixin):
     __tablename__ = 'users'

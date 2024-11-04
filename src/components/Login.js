@@ -1,16 +1,27 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
+import axios from "axios";
 
 const Login = ({ setIsLoggedIn }) => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setIsLoggedIn(true);
-    navigate("/profile");
+    try {
+      const response = await axios.post("http://localhost:5000/login", {
+        username,
+        password,
+      });
+      if (response.data.message === "Login successful") {
+        setIsLoggedIn(true);
+        navigate("/profile");
+      }
+    } catch (error) {
+      alert("Invalid credentials");
+    }
   };
 
   return (
@@ -22,9 +33,9 @@ const Login = ({ setIsLoggedIn }) => {
           <InputWrapper>
             <Label>Email</Label>
             <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
               placeholder="Enter your email"
             />

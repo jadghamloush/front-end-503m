@@ -1,5 +1,690 @@
-{% extends "base.html" %} {% block title %}Index{% endblock %} {% block content
-%}
-<h1>Admin Area</h1>
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Admin Dashboard</title>
+    <style>
+      /* Existing Styles */
+      table {
+        border-collapse: collapse;
+        margin-bottom: 50px;
+        width: 100%;
+      }
+      th,
+      td {
+        border: 1px solid #d4d4d4;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      h2 {
+        margin-top: 50px;
+      }
+      /* New Styles */
+      #stock-tables {
+        display: none; /* Initially hidden */
+      }
+      .btn {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-bottom: 20px;
+        margin-right: 10px; /* Space between buttons */
+      }
+      .btn:hover {
+        background-color: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Admin Dashboard</h1>
 
-{% endblock %}
+    <!-- Navigation Buttons -->
+    <button id="toggle-stock" class="btn">Show Stock</button>
+    <button id="toggle-invoices" class="btn">Show Invoices</button>
+
+    <!-- Container for All Tables -->
+    <div id="stock-tables">
+      <!-- Users Table -->
+      <div class="table-container">
+        <h2>Users</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>UID</th>
+              <th>Username</th>
+              <!-- Removed Password column for security -->
+              <th>Role</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            <tr>
+              <td>{{ user.uid }}</td>
+              <td>{{ user.username }}</td>
+              <td>{{ user.role }}</td>
+              <td>{{ user.description }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footwear Table -->
+      <div class="table-container">
+        <h2>Footwear (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in footwear %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footwear Subcategories Table -->
+      <div class="table-container">
+        <h2>Footwear Subcategories (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Footwear ID</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Size</th>
+              <th>Quantity</th>
+              <th>For Gender</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in footwear_subcategories %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.footwear_id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.price }}</td>
+              <td>{{ item.size }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.for_gender }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Activewear Tops Table -->
+      <div class="table-container">
+        <h2>Activewear Tops (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in activewear_tops %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Activewear Subcategories Table -->
+      <div class="table-container">
+        <h2>Activewear Subcategories (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Activewear ID</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Size</th>
+              <th>Quantity</th>
+              <th>For Gender</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in activewear_subcategories %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.activewear_id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.price }}</td>
+              <td>{{ item.size }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.for_gender }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Bottoms Table -->
+      <div class="table-container">
+        <h2>Bottoms (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in bottoms %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Bottoms Subcategories Table -->
+      <div class="table-container">
+        <h2>Bottoms Subcategories (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Bottoms ID</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Size</th>
+              <th>Quantity</th>
+              <th>For Gender</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in bottoms_subcategories %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.bottoms_id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.price }}</td>
+              <td>{{ item.size }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.for_gender }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Outerwear Table -->
+      <div class="table-container">
+        <h2>Outerwear (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in outerwear %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Outerwear Subcategories Table -->
+      <div class="table-container">
+        <h2>Outerwear Subcategories (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Outerwear ID</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Size</th>
+              <th>Quantity</th>
+              <th>For Gender</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in outerwear_subcategories %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.outerwear_id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.price }}</td>
+              <td>{{ item.size }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.for_gender }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Recovery and Wellness Table -->
+      <div class="table-container">
+        <h2>Recovery and Wellness (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in recovery_and_wellness %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Recovery Subcategories Table -->
+      <div class="table-container">
+        <h2>Recovery Subcategories (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Recovery ID</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Size</th>
+              <th>Quantity</th>
+              <th>For Gender</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in recovery_subcategories %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.recovery_id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.price }}</td>
+              <td>{{ item.size or 'N/A' }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.for_gender or 'N/A' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Accessories Table -->
+      <div class="table-container">
+        <h2>Accessories (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in accessories %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Accessories Subcategories Table -->
+      <div class="table-container">
+        <h2>Accessories Subcategories (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Accessories ID</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Size</th>
+              <th>Quantity</th>
+              <th>For Gender</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in accessories_subcategories %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.accessories_id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.price }}</td>
+              <td>{{ item.size }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.for_gender }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Swimwear Table -->
+      <div class="table-container">
+        <h2>Swimwear (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in swimwear %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Swimwear Subcategories Table -->
+      <div class="table-container">
+        <h2>Swimwear Subcategories (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Swimwear ID</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Size</th>
+              <th>Quantity</th>
+              <th>For Gender</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in swimwear_subcategories %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.swimwear_id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.price }}</td>
+              <td>{{ item.size }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.for_gender }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Compression Wear Table -->
+      <div class="table-container">
+        <h2>Compression Wear (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in compression_wear %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Compression Subcategories Table -->
+      <div class="table-container">
+        <h2>Compression Subcategories (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Compression Wear ID</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Size</th>
+              <th>Quantity</th>
+              <th>For Gender</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in compression_subcategories %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.compression_wear_id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.price }}</td>
+              <td>{{ item.size }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.for_gender }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Specialty Sportswear Table -->
+      <div class="table-container">
+        <h2>Specialty Sportswear (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in specialty_sportswear %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Specialty Sportswear Subcategories Table -->
+      <div class="table-container">
+        <h2>Specialty Sportswear Subcategories (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Specialty Sportswear ID</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Size</th>
+              <th>Quantity</th>
+              <th>For Gender</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in specialty_sportswear_subcategories %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.specialty_sportswear_id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.price }}</td>
+              <td>{{ item.size }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.for_gender }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Protective Gear Table -->
+      <div class="table-container">
+        <h2>Protective Gear (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in protective_gear %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Protective Gear Subcategories Table -->
+      <div class="table-container">
+        <h2>Protective Gear Subcategories (Available Stock)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Protective Gear ID</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Size</th>
+              <th>Quantity</th>
+              <th>For Gender</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in protective_gear_subcategories %}
+            <tr>
+              <td>{{ item.id }}</td>
+              <td>{{ item.protective_gear_id }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.price }}</td>
+              <td>{{ item.size }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.for_gender }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Invoices Table -->
+      <div id="invoices-section" style="display: none; margin-top: 50px">
+        <h2>Invoices</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Invoice ID</th>
+              <th>User ID</th>
+              <th>Product ID</th>
+              <th>Product Type</th>
+              <th>Quantity</th>
+              <th>Total Price</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for invoice in invoices %}
+            <tr>
+              <td>{{ invoice.id }}</td>
+              <td>{{ invoice.user_id }}</td>
+              <td>{{ invoice.product_id }}</td>
+              <td>{{ invoice.product_type }}</td>
+              <td>{{ invoice.quantity }}</td>
+              <td>{{ invoice.total_price }}</td>
+              <td>{{ invoice.date.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- JavaScript for Toggling Tables -->
+    <script>
+      // Toggle Stock Tables
+      document
+        .getElementById("toggle-stock")
+        .addEventListener("click", function () {
+          var tablesDiv = document.getElementById("stock-tables");
+          var button = document.getElementById("toggle-stock");
+          if (
+            tablesDiv.style.display === "none" ||
+            tablesDiv.style.display === ""
+          ) {
+            tablesDiv.style.display = "block";
+            button.textContent = "Hide Stock";
+          } else {
+            tablesDiv.style.display = "none";
+            button.textContent = "Show Stock";
+          }
+        });
+
+      // Toggle Invoices Table
+      document
+        .getElementById("toggle-invoices")
+        .addEventListener("click", function () {
+          var invoicesSection = document.getElementById("invoices-section");
+          var button = document.getElementById("toggle-invoices");
+          if (
+            invoicesSection.style.display === "none" ||
+            invoicesSection.style.display === ""
+          ) {
+            invoicesSection.style.display = "block";
+            button.textContent = "Hide Invoices";
+          } else {
+            invoicesSection.style.display = "none";
+            button.textContent = "Show Invoices";
+          }
+        });
+    </script>
+  </body>
+</html>

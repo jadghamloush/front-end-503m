@@ -32,7 +32,10 @@ const App = () => {
         </NavbarContainer>
         <Content>
           <Routes>
-            <Route path="/profile" element={<Profile />} />
+            <Route
+              path="/profile"
+              element={<Profile setIsLoggedIn={setIsLoggedIn} />}
+            />
             <Route
               path="/login"
               element={<Login setIsLoggedIn={setIsLoggedIn} />}

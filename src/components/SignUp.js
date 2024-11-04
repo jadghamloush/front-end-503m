@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
+import axios from "axios";
 
 const Signup = ({ setIsLoggedIn }) => {
   const navigate = useNavigate();
@@ -8,11 +9,20 @@ const Signup = ({ setIsLoggedIn }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
-    // Ideally, here you'd call a signup API
-    setIsLoggedIn(true);
-    navigate("/profile"); // Redirect to profile after successful signup
+    try {
+      const response = await axios.post("http://localhost:5000/signup", {
+        username,
+        password,
+      });
+      if (response.data.message === "User created successfully") {
+        setIsLoggedIn(true);
+        navigate("/profile");
+      }
+    } catch (error) {
+      alert("Signup failed");
+    }
   };
 
   return (

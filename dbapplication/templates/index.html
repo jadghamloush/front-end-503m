@@ -1,47 +1,221 @@
-{% extends "base.html" %}
-{% block title %}Index{% endblock %}
-
-{% block content %}
-    
-    {% if current_user.is_authenticated %}
-        <h3>Hello {{ current_user.username }}!</h3>
-    {% else %}
-        <h3>Hello</h3>
+<!-- templates/index.html -->
+{% extends "base.html" %} {% block title %}Home - Sportify{% endblock %} {%
+block content %}
+<!-- Hero Section -->
+<section class="hero-section d-flex align-items-center">
+  <div class="container text-center">
+    <h1 class="display-3 fw-bold">Elevate Your Game</h1>
+    <p class="lead my-4">Discover premium sportswear designed for champions.</p>
+    {% if not current_user.is_authenticated %}
+    <a href="{{ url_for('signup') }}" class="btn btn-primary btn-lg me-3"
+      >Join Now</a
+    >
+    <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg"
+      >Login</a
+    >
     {% endif %}
-    <a href="{{ url_for('signup') }}">Sign Up</a>
-    <a href="{{ url_for('login') }}">Login</a>
-    <a href="{{ url_for('logout') }}">Logout</a>
+  </div>
+</section>
 
-    {# 
-    <h1>Index Page</h1>
-    <ul>
-        {% for person in people %}
-            <li>{{ person }} <button onclick="deletePerson({{ person.pid }})">Delete</button><a href="{{ url_for('details', pid=person.pid) }}">Details</a></li>
-        {% endfor %}
-    </ul>
-    <h3>New Person</h3>
-    <form action="{{ url_for('index') }}" method="POST">
-        <input type="text" name="name" placeholder="Name" required="required"><br>
-        <input type="number" name="age" placeholder="Age"><br>
-        <input type="text" name="job" placeholder="Job"><br>
-        <input type="submit" value="Create">
-    </form>
+<!-- Features Section -->
+<section class="features-section py-5 bg-light">
+  <div class="container">
+    <h2 class="text-center mb-5 fw-bold">Why Choose Sportify?</h2>
+    <div class="row g-4">
+      <!-- Feature 1 -->
+      <div class="col-md-4">
+        <div class="card h-100 text-center border-0 shadow-sm">
+          <div class="card-body">
+            <i class="fas fa-dumbbell fa-3x mb-3 text-primary"></i>
+            <h5 class="card-title">High-Quality Materials</h5>
+            <p class="card-text">
+              Experience unparalleled comfort and durability with our premium
+              fabrics.
+            </p>
+          </div>
+        </div>
+      </div>
+      <!-- Feature 2 -->
+      <div class="col-md-4">
+        <div class="card h-100 text-center border-0 shadow-sm">
+          <div class="card-body">
+            <i class="fas fa-shoe-prints fa-3x mb-3 text-success"></i>
+            <h5 class="card-title">Innovative Design</h5>
+            <p class="card-text">
+              Stay ahead with cutting-edge designs that enhance your
+              performance.
+            </p>
+          </div>
+        </div>
+      </div>
+      <!-- Feature 3 -->
+      <div class="col-md-4">
+        <div class="card h-100 text-center border-0 shadow-sm">
+          <div class="card-body">
+            <i class="fas fa-truck fa-3x mb-3 text-warning"></i>
+            <h5 class="card-title">Fast Shipping</h5>
+            <p class="card-text">
+              Get your gear delivered swiftly to keep you on track with your
+              training.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <script type="text/javascript">
-        function deletePerson(pid){
-            fetch('{{ url_for("delete", pid=pid) }}' + pid, {
-                method: 'DELETE'
-            }).then(response => {
-                if (response.ok){
-                    window.location.reload()
-                }
-                else {
-                    console.error('Failed to delete item with pid: ', pid);
-                }
-            })
-            .catch(error => { console.error('Error during fetching:', error) });
-        }
-    </script>
-    #}
+<!-- Products Showcase -->
+<section class="products-section py-5">
+  <div class="container">
+    <h2 class="text-center mb-5 fw-bold">Featured Products</h2>
+    <div class="row g-4">
+      <!-- Product 1 -->
+      <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+          <img
+            src="{{ url_for('static', filename='images/product1.jpg') }}"
+            class="card-img-top"
+            alt="Product 1"
+          />
+          <div class="card-body">
+            <h5 class="card-title">Ultra Running Shoes</h5>
+            <p class="card-text">
+              Lightweight and breathable, perfect for long-distance runners.
+            </p>
+          </div>
+          <div class="card-footer text-center">
+            <a href="#" class="btn btn-primary">Buy Now</a>
+          </div>
+        </div>
+      </div>
+      <!-- Product 2 -->
+      <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+          <img
+            src="{{ url_for('static', filename='images/product2.jpg') }}"
+            class="card-img-top"
+            alt="Product 2"
+          />
+          <div class="card-body">
+            <h5 class="card-title">Performance Sports Bra</h5>
+            <p class="card-text">
+              Supportive and comfortable, designed for high-impact activities.
+            </p>
+          </div>
+          <div class="card-footer text-center">
+            <a href="#" class="btn btn-primary">Buy Now</a>
+          </div>
+        </div>
+      </div>
+      <!-- Product 3 -->
+      <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+          <img
+            src="{{ url_for('static', filename='images/product3.jpg') }}"
+            class="card-img-top"
+            alt="Product 3"
+          />
+          <div class="card-body">
+            <h5 class="card-title">Compression Leggings</h5>
+            <p class="card-text">
+              Enhance circulation and reduce muscle fatigue during workouts.
+            </p>
+          </div>
+          <div class="card-footer text-center">
+            <a href="#" class="btn btn-primary">Buy Now</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
+<!-- Testimonials Section -->
+<section class="testimonials-section py-5 bg-light">
+  <div class="container">
+    <h2 class="text-center mb-5 fw-bold">What Our Customers Say</h2>
+    <div class="row justify-content-center">
+      <!-- Testimonial 1 -->
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm p-4">
+          <div class="d-flex align-items-center mb-3">
+            <img
+              src="{{ url_for('static', filename='images/testimonial1.jpg') }}"
+              class="rounded-circle me-3"
+              alt="Customer 1"
+              width="60"
+              height="60"
+            />
+            <div>
+              <h5 class="mb-0">Jane Doe</h5>
+              <small class="text-muted">Marathon Runner</small>
+            </div>
+          </div>
+          <p class="mb-0">
+            "Sportify's gear has transformed my training sessions. The quality
+            is unmatched!"
+          </p>
+        </div>
+      </div>
+      <!-- Testimonial 2 -->
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm p-4">
+          <div class="d-flex align-items-center mb-3">
+            <img
+              src="{{ url_for('static', filename='images/testimonial2.jpg') }}"
+              class="rounded-circle me-3"
+              alt="Customer 2"
+              width="60"
+              height="60"
+            />
+            <div>
+              <h5 class="mb-0">John Smith</h5>
+              <small class="text-muted">Gym Enthusiast</small>
+            </div>
+          </div>
+          <p class="mb-0">
+            "The compression leggings provide excellent support. Highly
+            recommend to anyone serious about their workouts."
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Call to Action Section -->
+<section
+  class="cta-section text-white text-center py-5"
+  style="background-color: #343a40"
+>
+  <div class="container">
+    <h2 class="mb-4 fw-bold">Ready to Elevate Your Performance?</h2>
+    <a href="#" class="btn btn-lg btn-primary">Shop Now</a>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="bg-dark text-white py-4">
+  <div class="container text-center">
+    <div class="mb-3">
+      <a href="#" class="text-white me-3"
+        ><i class="fab fa-facebook fa-lg"></i
+      ></a>
+      <a href="#" class="text-white me-3"
+        ><i class="fab fa-twitter fa-lg"></i
+      ></a>
+      <a href="#" class="text-white me-3"
+        ><i class="fab fa-instagram fa-lg"></i
+      ></a>
+      <a href="#" class="text-white"><i class="fab fa-linkedin fa-lg"></i></a>
+    </div>
+    <p class="mb-1">&copy; 2024 Sportify. All rights reserved.</p>
+    <p>
+      <a href="#" class="text-white me-2">Privacy Policy</a>
+      |
+      <a href="#" class="text-white ms-2">Terms of Service</a>
+    </p>
+  </div>
+</footer>
 {% endblock %}

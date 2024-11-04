@@ -8,7 +8,7 @@ db = SQLAlchemy()
 
 def create_app():
     app = Flask(__name__, template_folder='templates')
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///C:/Users/Samer/Desktop/AUB/EECE 503M/Sport_store/dbapplication/testdb.db'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///C:/Users/jad/Desktop/AUB/Year-4/EECE-503m/project/front-end-503m/dbapplication/testdb.db'
     app.secret_key = 'Some Key'
     db.init_app(app)
     login_manager = LoginManager()

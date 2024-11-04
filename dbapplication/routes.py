@@ -1,4 +1,4 @@
-from flask import render_template,redirect,url_for, request
+from flask import flash, render_template,redirect,url_for, request
 from flask_login import login_user, logout_user, current_user, login_required
 from models import User
 
@@ -44,6 +44,18 @@ def register_routes(app, db,bcrypt):
     def logout():
         logout_user()
         return redirect(url_for('index'))
+
+
+    #admin page
+    @app.route('/messi/admin')
+    @login_required
+    def admin():
+        id = current_user.uid
+        if id == 1:
+            return render_template('admin.html')
+        else:
+            flash("must be admin")
+            return redirect(url_for('index'))
             
     
     

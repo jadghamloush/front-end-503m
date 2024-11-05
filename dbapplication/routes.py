@@ -10,9 +10,37 @@ from models import (
     SpecialtySportswearSubCategory, ProtectiveGearSubCategory
 )
 
-def register_routes(app, db,bcrypt):
 
-    # app.py
+
+
+def create_token(user_id,app):
+    payload = {
+        'sub': user_id,
+        'iat': datetime.datetime.utcnow(),
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=15) 
+    }
+    return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+
+def extract_auth_token(authenticated_request):
+    auth_header = authenticated_request.headers.get('Authorization')
+    if auth_header:
+        return auth_header.split(" ")[1]
+    else:
+        return None
+
+
+def decode_token(token,app):
+    try:
+        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        return payload['sub']
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+
+
+def register_routes(app, db,bcrypt):
 
     def get_items_for_gender(gender):
         """
@@ -73,16 +101,37 @@ def register_routes(app, db,bcrypt):
         if request.method == 'GET':
             return render_template('login.html')
         elif request.method == 'POST':
-            username = request.form.get('username')
-            password = request.form.get('password')
-            user = User.query.filter(User.username == username).first()
-            if user:
-                if bcrypt.check_password_hash(user.password, password):
-                    login_user(user)
-                    return redirect(url_for('index'))
-            
-            else:
-                return "Username Or password Incorrect"
+            try:
+                user_data = request.get_json()
+                
+                if not user_data or 'username' not in user_data or 'password' not in user_data:
+                    return jsonify({'error': 'Missing username or password'}), 400
+                    
+                username = user_data["username"]
+                password = user_data["password"]
+
+                existing_user = User.query.filter_by(username=username).first()
+                if existing_user is None:
+                    return jsonify({'error': 'Invalid credentials'}), 403
+                    
+                if not bcrypt.check_password_hash(existing_user.password, password):
+                    return jsonify({'error': 'Invalid credentials'}), 403
+                
+                # Create JWT token
+                token = create_token(existing_user.uid,app)
+                
+                # If you want to also maintain a session
+                login_user(existing_user)
+                
+                return jsonify({
+                    "token": token,
+                    "username": existing_user.username
+                }), 200
+                
+            except Exception as e:
+                print(f"Login error: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+
     
     
     
@@ -268,7 +317,6 @@ def register_routes(app, db,bcrypt):
 
 
     @app.route('/women')
-    @login_required  # Optional: Remove if you want the page to be publicly accessible
     def women():
         women_items = get_items_for_gender('Women')
         
@@ -291,7 +339,6 @@ def register_routes(app, db,bcrypt):
 
 
     @app.route('/kids')
-    @login_required  # Optional: Remove if you want the page to be publicly accessible
     def kids():
         kids_items = get_items_for_gender('Kids')
         

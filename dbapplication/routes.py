@@ -7,14 +7,13 @@ from models import (
     OuterwearSubCategory, RecoverySubCategory, Accessories, Swimwear,
     CompressionWear, SpecialtySportswear, ProtectiveGear,
     AccessoriesSubCategory, SwimwearSubCategory, CompressionSubCategory,
-    SpecialtySportswearSubCategory, ProtectiveGearSubCategory
+    SpecialtySportswearSubCategory, ProtectiveGearSubCategory, Cart
 )
 
 
 import jwt
 import datetime
-
-
+from sqlalchemy import func
 
 
 def create_token(user_id,app):
@@ -469,8 +468,8 @@ def register_routes(app, db,bcrypt):
 
 
     @app.route("/cart/remove", methods=["POST"])
-    @login_required
     def remove_from_cart():
+
         try:
             data = request.get_json()
             cart_id = data.get('cart_id')
@@ -485,10 +484,10 @@ def register_routes(app, db,bcrypt):
             db.session.delete(cart_item)
             db.session.commit()
 
-            # Recalculate subtotal
-            subtotal = db.session.query(func.sum(product_model.price * Cart.quantity)).\
-                join(product_model, (product_model.id == Cart.product_id)).\
-                filter(Cart.user_id == current_user.uid).scalar() or 0
+            cart_items = Cart.query.filter_by(user_id=current_user.uid).all()
+            subtotal = sum(
+                [item.get_product().price * item.quantity for item in cart_items if item.get_product()]
+            )
 
             return jsonify({'message': 'Item removed from cart.', 'subtotal': subtotal}), 200
 
@@ -499,8 +498,8 @@ def register_routes(app, db,bcrypt):
     # Checkout Routes
 
     @app.route("/checkout", methods=["GET", "POST"])
-    @login_required
     def checkout():
+
         cart_items = Cart.query.filter_by(user_id=current_user.uid).all()
         if not cart_items:
             flash('Your cart is empty.', 'info')
@@ -520,16 +519,14 @@ def register_routes(app, db,bcrypt):
                     'product_type': item.product_type,
                     'name': product.type,
                     'price': product.price,
-                    'size': item.size if hasattr(product, 'size') else 'N/A',
+                    'size': product.size if hasattr(product, 'size') else 'N/A',
                     'quantity': item.quantity,
                     'total_price': total_price,
                     'image': f"images/{item.product_type.lower()}/{product.type.replace(' ', '_').lower()}.jpg"
                 })
 
         if request.method == 'POST':
-            # Here, you would handle payment processing and order confirmation
-            # For simplicity, we'll assume payment is successful
-
+            # Handle checkout logic (payment processing, stock deduction, invoice creation)
             try:
                 for item in cart_items:
                     product = item.get_product()
@@ -569,6 +566,7 @@ def register_routes(app, db,bcrypt):
                 return redirect(url_for('view_cart'))
 
         return render_template('checkout.html', cart=cart_details, subtotal=subtotal)
+
     
     
     # @app.route('/', methods =['GET', 'POST'])

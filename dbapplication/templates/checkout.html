@@ -1,12 +1,11 @@
 <!-- templates/checkout.html -->
 {% extends "base.html" %} {% block title %}Checkout - Sportify{% endblock %} {%
 block content %}
-<!-- Checkout Section -->
 <section class="checkout-section py-5">
   <div class="container">
-    <h2 class="text-center mb-5 fw-bold">Checkout</h2>
+    <h2 class="text-center fw-bold mb-4">Checkout</h2>
 
-    <!-- Flash Messages Container -->
+    <!-- Flash Messages -->
     <div id="flash-messages">
       {% with messages = get_flashed_messages(with_categories=true) %} {% if
       messages %} {% for category, message in messages %}
@@ -26,49 +25,59 @@ block content %}
     </div>
 
     <!-- Cart Items Table -->
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <th>Product</th>
-          <th>Price</th>
-          <th>Size</th>
-          <th>Quantity</th>
-          <th>Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in cart %}
-        <tr>
-          <td>
-            <img
-              src="{{ url_for('static', filename=item.image) }}"
-              alt="{{ item.name }}"
-              width="50"
-            />
-            {{ item.name }}
-          </td>
-          <td>${{ "{:.2f}".format(item.price) }}</td>
-          <td>{{ item.size }}</td>
-          <td>{{ item.quantity }}</td>
-          <td>${{ "{:.2f}".format(item.total_price) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <!-- Subtotal Display -->
-    <div class="text-end">
-      <h4>Subtotal: ${{ "{:.2f}".format(subtotal) }}</h4>
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th>Name</th>
+            <th>Size</th>
+            <th>Price</th>
+            <th>Quantity</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in cart %}
+          <tr>
+            <td>
+              <img
+                src="{{ url_for('static', filename=item.image) }}"
+                alt="{{ item.name }}"
+                width="50"
+                height="50"
+                loading="lazy"
+              />
+            </td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.size }}</td>
+            <!-- Correctly referencing size from cart_details -->
+            <td>${{ "{:.2f}".format(item.price) }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>${{ "{:.2f}".format(item.total_price) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="5" class="text-end">Subtotal:</th>
+            <th>${{ "{:.2f}".format(subtotal) }}</th>
+          </tr>
+        </tfoot>
+      </table>
     </div>
 
-    <!-- Checkout Confirmation Button -->
-    <div class="text-end mt-4">
-      <form method="POST">
-        <!-- CSRF Token -->
-        {{ csrf_field() }}
-        <button type="submit" class="btn btn-success">Confirm Purchase</button>
-      </form>
-    </div>
+    <!-- Checkout Form -->
+    <form method="POST" action="{{ url_for('checkout') }}">
+      <!-- Payment and Shipping Details -->
+      <!-- Add your payment and shipping fields here -->
+
+      <div class="text-center">
+        <button type="submit" class="btn btn-primary btn-lg">
+          Proceed to Payment
+        </button>
+      </div>
+    </form>
   </div>
 </section>
 {% endblock %}

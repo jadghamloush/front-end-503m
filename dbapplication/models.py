@@ -33,6 +33,8 @@ class Report(db.Model):
 
         
 
+# models.py
+
 class Cart(db.Model):
     __tablename__ = 'cart'
     
@@ -57,6 +59,7 @@ class Cart(db.Model):
         if model:
             return model.query.get(self.product_id)
         return None
+
 
 class User(db.Model,UserMixin):
     __tablename__ = 'users'

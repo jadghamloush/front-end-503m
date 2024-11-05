@@ -2,6 +2,8 @@ from app import db
 from flask_login import UserMixin
 from datetime import datetime
 
+# models.py
+
 class Invoice(db.Model):
     __tablename__ = 'invoices'
     
@@ -12,12 +14,13 @@ class Invoice(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     price = db.Column(db.Float, nullable=False)
+    total_price = db.Column(db.Float, nullable=False)  # **New Field**
     status = db.Column(db.String, nullable=False) 
 
     user = db.relationship('User', backref='invoices')
 
     def __repr__(self):
-        return f"<Invoice #{self.invoice_id} - User: {self.user.username}, Product ID: {self.product_id}, Quantity: {self.quantity}, Date: {self.date}, Price: {self.price}, Status: {self.status}>"
+        return f"<Invoice #{self.invoice_id} - User: {self.user.username}, Product ID: {self.product_id}, Quantity: {self.quantity}, Date: {self.date}, Total Price: {self.total_price}, Status: {self.status}>"
 
 
 class Report(db.Model):

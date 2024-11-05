@@ -1,3 +1,4 @@
+<!-- templates/admin.html -->
 <!DOCTYPE html>
 <html>
   <head>
@@ -38,6 +39,14 @@
       }
       .btn:hover {
         background-color: #0056b3;
+      }
+      /* Additional Styling for Invoices Table */
+      #invoices-section table {
+        width: 100%;
+      }
+      #invoices-section th,
+      #invoices-section td {
+        text-align: center;
       }
     </style>
   </head>
@@ -615,37 +624,42 @@
           </tbody>
         </table>
       </div>
+    </div>
 
-      <!-- Invoices Table -->
-      <div id="invoices-section" style="display: none; margin-top: 50px">
-        <h2>Invoices</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Invoice ID</th>
-              <th>User ID</th>
-              <th>Product ID</th>
-              <th>Product Type</th>
-              <th>Quantity</th>
-              <th>Total Price</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for invoice in invoices %}
-            <tr>
-              <td>{{ invoice.id }}</td>
-              <td>{{ invoice.user_id }}</td>
-              <td>{{ invoice.product_id }}</td>
-              <td>{{ invoice.product_type }}</td>
-              <td>{{ invoice.quantity }}</td>
-              <td>{{ invoice.total_price }}</td>
-              <td>{{ invoice.date.strftime('%Y-%m-%d') }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+    <div id="invoices-section" style="display: none; margin-top: 50px">
+      <h2>Invoices</h2>
+      <!-- Display Number of Invoices -->
+      <p>Total Invoices: {{ invoices|length }}</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Invoice ID</th>
+            <th>User ID</th>
+            <th>Product ID</th>
+            <th>Product Type</th>
+            <th>Quantity</th>
+            <th>Price per Unit</th>
+            <th>Total Price</th>
+            <th>Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for invoice in invoices %}
+          <tr>
+            <td>{{ invoice.invoice_id }}</td>
+            <td>{{ invoice.user_id }}</td>
+            <td>{{ invoice.product_id }}</td>
+            <td>{{ invoice.product_type }}</td>
+            <td>{{ invoice.quantity }}</td>
+            <td>${{ "{:.2f}".format(invoice.price) }}</td>
+            <td>${{ "{:.2f}".format(invoice.total_price) }}</td>
+            <td>{{ invoice.date.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            <td>{{ invoice.status }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
 
     <!-- JavaScript for Toggling Tables -->

@@ -7,7 +7,7 @@ from models import (
     OuterwearSubCategory, RecoverySubCategory, Accessories, Swimwear,
     CompressionWear, SpecialtySportswear, ProtectiveGear,
     AccessoriesSubCategory, SwimwearSubCategory, CompressionSubCategory,
-    SpecialtySportswearSubCategory, ProtectiveGearSubCategory, Cart
+    SpecialtySportswearSubCategory, ProtectiveGearSubCategory, Cart, Invoice
 )
 
 
@@ -151,53 +151,62 @@ def register_routes(app, db,bcrypt):
     @app.route('/messi/admin')
     @login_required
     def admin():
-        id = current_user.uid
-        if id == 1:
-            users = User.query.all()
-            footwear = Footwear.query.all()
-            footwear_subcategories = FootwearSubCategory.query.all()
-            activewear_tops = ActivewearTops.query.all()
-            activewear_subcategories = ActivewearSubCategory.query.all()
-            bottoms = Bottoms.query.all()
-            bottoms_subcategories = BottomsSubCategory.query.all()
-            outerwear = Outerwear.query.all()
-            outerwear_subcategories = OuterwearSubCategory.query.all()
-            recovery_and_wellness = RecoveryAndWellness.query.all()
-            recovery_subcategories = RecoverySubCategory.query.all()
-            accessories = Accessories.query.all()
-            accessories_subcategories = AccessoriesSubCategory.query.all()
-            swimwear = Swimwear.query.all()
-            swimwear_subcategories = SwimwearSubCategory.query.all()
-            compression_wear = CompressionWear.query.all()
-            compression_subcategories = CompressionSubCategory.query.all()
-            specialty_sportswear = SpecialtySportswear.query.all()
-            specialty_sportswear_subcategories = SpecialtySportswearSubCategory.query.all()
-            protective_gear = ProtectiveGear.query.all()
-            protective_gear_subcategories = ProtectiveGearSubCategory.query.all()
-            return render_template('admin.html', users=users,
-        footwear=footwear,
-        footwear_subcategories=footwear_subcategories,
-        activewear_tops=activewear_tops,
-        activewear_subcategories=activewear_subcategories,
-        bottoms=bottoms,
-        bottoms_subcategories=bottoms_subcategories,
-        outerwear=outerwear,
-        outerwear_subcategories=outerwear_subcategories,
-        recovery_and_wellness=recovery_and_wellness,
-        recovery_subcategories=recovery_subcategories,
-        accessories=accessories,
-        accessories_subcategories=accessories_subcategories,
-        swimwear=swimwear,
-        swimwear_subcategories=swimwear_subcategories,
-        compression_wear=compression_wear,
-        compression_subcategories=compression_subcategories,
-        specialty_sportswear=specialty_sportswear,
-        specialty_sportswear_subcategories=specialty_sportswear_subcategories,
-        protective_gear=protective_gear,
-        protective_gear_subcategories=protective_gear_subcategories)
-        else:
-            flash("must be admin")
+        if current_user.uid != 1:  # Assuming UID 1 is the admin
+            flash("Access denied. Admins only.", 'danger')
             return redirect(url_for('index'))
+        
+        # Fetch all users
+        users = User.query.all()
+        
+        # Fetch all product categories and their subcategories
+        footwear = Footwear.query.all()
+        footwear_subcategories = FootwearSubCategory.query.all()
+        activewear_tops = ActivewearTops.query.all()
+        activewear_subcategories = ActivewearSubCategory.query.all()
+        bottoms = Bottoms.query.all()
+        bottoms_subcategories = BottomsSubCategory.query.all()
+        outerwear = Outerwear.query.all()
+        outerwear_subcategories = OuterwearSubCategory.query.all()
+        recovery_and_wellness = RecoveryAndWellness.query.all()
+        recovery_subcategories = RecoverySubCategory.query.all()
+        accessories = Accessories.query.all()
+        accessories_subcategories = AccessoriesSubCategory.query.all()
+        swimwear = Swimwear.query.all()
+        swimwear_subcategories = SwimwearSubCategory.query.all()
+        compression_wear = CompressionWear.query.all()
+        compression_subcategories = CompressionSubCategory.query.all()
+        specialty_sportswear = SpecialtySportswear.query.all()
+        specialty_sportswear_subcategories = SpecialtySportswearSubCategory.query.all()
+        protective_gear = ProtectiveGear.query.all()
+        protective_gear_subcategories = ProtectiveGearSubCategory.query.all()
+        
+        # Fetch all invoices
+        invoices = Invoice.query.order_by(Invoice.date.desc()).all()
+        
+        return render_template('admin.html', 
+            users=users,
+            footwear=footwear,
+            footwear_subcategories=footwear_subcategories,
+            activewear_tops=activewear_tops,
+            activewear_subcategories=activewear_subcategories,
+            bottoms=bottoms,
+            bottoms_subcategories=bottoms_subcategories,
+            outerwear=outerwear,
+            outerwear_subcategories=outerwear_subcategories,
+            recovery_and_wellness=recovery_and_wellness,
+            recovery_subcategories=recovery_subcategories,
+            accessories=accessories,
+            accessories_subcategories=accessories_subcategories,
+            swimwear=swimwear,
+            swimwear_subcategories=swimwear_subcategories,
+            compression_wear=compression_wear,
+            compression_subcategories=compression_subcategories,
+            specialty_sportswear=specialty_sportswear,
+            specialty_sportswear_subcategories=specialty_sportswear_subcategories,
+            protective_gear=protective_gear,
+            protective_gear_subcategories=protective_gear_subcategories,
+            invoices=invoices  # Pass invoices to the template
+        )
 
 
 
@@ -497,9 +506,9 @@ def register_routes(app, db,bcrypt):
 
     # Checkout Routes
 
+
     @app.route("/checkout", methods=["GET", "POST"])
     def checkout():
-
         cart_items = Cart.query.filter_by(user_id=current_user.uid).all()
         if not cart_items:
             flash('Your cart is empty.', 'info')
@@ -526,20 +535,36 @@ def register_routes(app, db,bcrypt):
                 })
 
         if request.method == 'POST':
-            # Handle checkout logic (payment processing, stock deduction, invoice creation)
             try:
+                # Retrieve payment details from form
+                card_number = request.form.get('card_number')
+                expiration_date = request.form.get('expiration_date')
+                cvv = request.form.get('cvv')
+                cardholder_name = request.form.get('cardholder_name')
+
+                # Simulate payment processing
+                if not all([card_number, expiration_date, cvv, cardholder_name]):
+                    flash('All payment fields are required.', 'danger')
+                    return render_template('checkout.html', cart=cart_details, subtotal=subtotal)
+
+                # Assume payment is successful
+
+                # Create Invoice records and update stock
                 for item in cart_items:
                     product = item.get_product()
                     if not product:
                         continue  # Skip if product not found
 
-                    # Check stock again
+                    # Check stock
                     if item.quantity > product.quantity:
                         flash(f'Not enough stock for {product.type}.', 'danger')
                         return redirect(url_for('view_cart'))
 
                     # Deduct stock
                     product.quantity -= item.quantity
+
+                    # Calculate total price
+                    total_price = product.price * item.quantity
 
                     # Create Invoice
                     invoice = Invoice(
@@ -548,6 +573,7 @@ def register_routes(app, db,bcrypt):
                         product_type=item.product_type,
                         quantity=item.quantity,
                         price=product.price,
+                        total_price=total_price,  # Populate total_price
                         status='Paid'  # Assuming payment is done
                     )
                     db.session.add(invoice)
@@ -567,31 +593,33 @@ def register_routes(app, db,bcrypt):
 
         return render_template('checkout.html', cart=cart_details, subtotal=subtotal)
 
-    
-    
-    # @app.route('/', methods =['GET', 'POST'])
-    # def index():
-    #     if request.method == 'GET':
-    #         people = Person.query.all()
-    #         return render_template('index.html', people=people)
-    #     elif request.method =='POST':
-    #         name = request.form.get('name')
-    #         age = int(request.form.get('age'))
-    #         job = request.form.get('job')
-    #         person = Person(name=name, age=age, job=job) # here we are creating the new person that we want to add to our database
-    #         db.session.add(person)
-    #         db.session.commit()
-    #         people = Person.query.all()
-    #         return render_template('index.html', people=people)
-    
-    # @app.route('/delete/<pid>', methods=['DELETE'])
-    # def delete(pid):
-    #     Person.query.filter(Person.pid==pid).delete()
-    #     db.session.commit()
-    #     people = Person.query.all()
-    #     return render_template('index.html', people=people)
-    
-    # @app.route('/details/<int:pid>')
-    # def details(pid):
-    #     person = Person.query.filter(Person.pid==pid).first()
-    #     return render_template('detail.html', person= person)
+
+
+        
+        
+        # @app.route('/', methods =['GET', 'POST'])
+        # def index():
+        #     if request.method == 'GET':
+        #         people = Person.query.all()
+        #         return render_template('index.html', people=people)
+        #     elif request.method =='POST':
+        #         name = request.form.get('name')
+        #         age = int(request.form.get('age'))
+        #         job = request.form.get('job')
+        #         person = Person(name=name, age=age, job=job) # here we are creating the new person that we want to add to our database
+        #         db.session.add(person)
+        #         db.session.commit()
+        #         people = Person.query.all()
+        #         return render_template('index.html', people=people)
+        
+        # @app.route('/delete/<pid>', methods=['DELETE'])
+        # def delete(pid):
+        #     Person.query.filter(Person.pid==pid).delete()
+        #     db.session.commit()
+        #     people = Person.query.all()
+        #     return render_template('index.html', people=people)
+        
+        # @app.route('/details/<int:pid>')
+        # def details(pid):
+        #     person = Person.query.filter(Person.pid==pid).first()
+        #     return render_template('detail.html', person= person)

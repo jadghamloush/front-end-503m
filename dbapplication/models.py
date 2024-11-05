@@ -12,7 +12,7 @@ class Invoice(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     price = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String, nullable=False)  # e.g., 'Pending', 'Paid', 'Shipped'
+    status = db.Column(db.String, nullable=False) 
 
     user = db.relationship('User', backref='invoices')
 
@@ -26,12 +26,37 @@ class Report(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     most_popular_product_id = db.Column(db.Integer, nullable=False)
     most_popular_product_type = db.Column(db.String, nullable=False)
-    future_demand = db.Column(db.String, nullable=True)  # Could be a text description or JSON data
+    future_demand = db.Column(db.String, nullable=True)
 
     def __repr__(self):
         return f"<Report #{self.id} - Most Popular Product ID: {self.most_popular_product_id}, Type: {self.most_popular_product_type}, Future Demand: {self.future_demand}>"
 
         
+
+class Cart(db.Model):
+    __tablename__ = 'cart'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.uid'), nullable=False)
+    product_type = db.Column(db.String, nullable=False)  # e.g., 'FootwearSubCategory', 'ActivewearSubCategory', etc.
+    product_id = db.Column(db.Integer, nullable=False)   # ID corresponding to the product in its subcategory
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    date_added = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship to User
+    user = db.relationship('User', backref=db.backref('cart_items', lazy=True))
+    
+    def __repr__(self):
+        return f"<CartItem UserID: {self.user_id}, ProductType: {self.product_type}, ProductID: {self.product_id}, Quantity: {self.quantity}>"
+    
+    def get_product(self):
+        """
+        Retrieves the actual product object based on product_type and product_id.
+        """
+        model = globals().get(self.product_type)
+        if model:
+            return model.query.get(self.product_id)
+        return None
 
 class User(db.Model,UserMixin):
     __tablename__ = 'users'

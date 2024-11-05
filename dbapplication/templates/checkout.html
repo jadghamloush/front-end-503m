@@ -1,0 +1,74 @@
+<!-- templates/checkout.html -->
+{% extends "base.html" %} {% block title %}Checkout - Sportify{% endblock %} {%
+block content %}
+<!-- Checkout Section -->
+<section class="checkout-section py-5">
+  <div class="container">
+    <h2 class="text-center mb-5 fw-bold">Checkout</h2>
+
+    <!-- Flash Messages Container -->
+    <div id="flash-messages">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div
+        class="alert alert-{{ category }} alert-dismissible fade show"
+        role="alert"
+      >
+        {{ message }}
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+          aria-label="Close"
+        ></button>
+      </div>
+      {% endfor %} {% endif %} {% endwith %}
+    </div>
+
+    <!-- Cart Items Table -->
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Price</th>
+          <th>Size</th>
+          <th>Quantity</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in cart %}
+        <tr>
+          <td>
+            <img
+              src="{{ url_for('static', filename=item.image) }}"
+              alt="{{ item.name }}"
+              width="50"
+            />
+            {{ item.name }}
+          </td>
+          <td>${{ "{:.2f}".format(item.price) }}</td>
+          <td>{{ item.size }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>${{ "{:.2f}".format(item.total_price) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Subtotal Display -->
+    <div class="text-end">
+      <h4>Subtotal: ${{ "{:.2f}".format(subtotal) }}</h4>
+    </div>
+
+    <!-- Checkout Confirmation Button -->
+    <div class="text-end mt-4">
+      <form method="POST">
+        <!-- CSRF Token -->
+        {{ csrf_field() }}
+        <button type="submit" class="btn btn-success">Confirm Purchase</button>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,4 +1,4 @@
-from flask import render_template,redirect,url_for,flash, request
+from flask import render_template,redirect,url_for,flash, request, jsonify
 from flask_login import login_user, logout_user, current_user, login_required
 from models import User
 from models import (
@@ -9,6 +9,10 @@ from models import (
     AccessoriesSubCategory, SwimwearSubCategory, CompressionSubCategory,
     SpecialtySportswearSubCategory, ProtectiveGearSubCategory
 )
+
+
+import jwt
+import datetime
 
 
 
@@ -72,6 +76,8 @@ def register_routes(app, db,bcrypt):
                     'price': item.price,
                     'size': item.size,
                     'quantity': item.quantity,
+                    'product_id': item.id,               # Ensure 'id' is correct
+                    'product_type': model.__name__,      # e.g., 'FootwearSubCategory'
                     'image': f"{category.lower().replace(' & ', '_').replace(' ', '_')}/{item.type.replace(' ', '_').lower()}.jpg"
                 })
         
@@ -93,7 +99,7 @@ def register_routes(app, db,bcrypt):
             user = User(username=username, password=hashed_password)
             db.session.add(user)
             db.session.commit()
-            return redirect(url_for('index'))
+            return redirect(url_for('login'))
             
             
     @app.route('/login', methods=['GET', 'POST'])
@@ -257,47 +263,13 @@ def register_routes(app, db,bcrypt):
                 popular_product = None
 
         return render_template('view_report.html', report=report, popular_product=popular_product, total_quantity=report.most_popular_product_id and report.total_quantity or 0)
-        
 
-    # app.py
 
     @app.route('/men')
     def men():
-        footwear_items = FootwearSubCategory.query.filter_by(for_gender='Men').all()
-        activewear_items = ActivewearSubCategory.query.filter_by(for_gender='Men').all()
-        bottoms_items = BottomsSubCategory.query.filter_by(for_gender='Men').all()
-        outerwear_items = OuterwearSubCategory.query.filter_by(for_gender='Men').all()
-        recovery_items = RecoverySubCategory.query.filter_by(for_gender='Men').all()
-        accessories_items = AccessoriesSubCategory.query.filter_by(for_gender='Men').all()
-        swimwear_items = SwimwearSubCategory.query.filter_by(for_gender='Men').all()
-        compression_items = CompressionSubCategory.query.filter_by(for_gender='Men').all()
-        specialty_items = SpecialtySportswearSubCategory.query.filter_by(for_gender='Men').all()
-        protective_gear_items = ProtectiveGearSubCategory.query.filter_by(for_gender='Men').all()
-        
-        men_items = []
-        
-        def append_items(items, category):
-            for item in items:
-                men_items.append({
-                    'category': category,
-                    'type': item.type,
-                    'price': item.price,
-                    'size': item.size,
-                    'quantity': item.quantity,
-                    'image': f"{category.lower().replace(' & ', '_').replace(' ', '_')}/{item.type.replace(' ', '_').lower()}.jpg"
-                })
-        
-        append_items(footwear_items, 'Footwear')
-        append_items(activewear_items, 'Activewear Tops')
-        append_items(bottoms_items, 'Bottoms')
-        append_items(outerwear_items, 'Outerwear')
-        append_items(recovery_items, 'Recovery & Wellness')
-        append_items(accessories_items, 'Accessories')
-        append_items(swimwear_items, 'Swimwear')
-        append_items(compression_items, 'Compression Wear')
-        append_items(specialty_items, 'Specialty Sportswear')
-        append_items(protective_gear_items, 'Protective Gear')
-        
+        from models import Cart  # Local import to avoid circular dependency
+
+        men_items = get_items_for_gender('Men')  # Utilize the existing function
         main_categories = [
             'All',
             'Footwear',
@@ -311,8 +283,9 @@ def register_routes(app, db,bcrypt):
             'Specialty Sportswear',
             'Protective Gear'
         ]
-        
-        return render_template('men.html', men_items=men_items, main_categories=main_categories)
+        cart_count = Cart.query.filter_by(user_id=current_user.uid).count() if current_user.is_authenticated else 0
+        return render_template('men.html', men_items=men_items, main_categories=main_categories, cart_count=cart_count)
+
 
 
 
@@ -358,6 +331,244 @@ def register_routes(app, db,bcrypt):
         ]
         
         return render_template('kids.html', items=kids_items, categories=main_categories)
+
+
+
+    @app.route("/add_to_cart", methods=["POST"])
+    def add_to_cart():
+        try:
+            data = request.get_json()
+            print("Received data in /add_to_cart:", data)  # Debugging line
+
+            product_id = data.get('product_id')
+            product_type = data.get('product_type')
+            quantity = data.get('quantity', 1)
+
+            if not product_id or not product_type:
+                return jsonify({'error': 'Product ID and type are required.'}), 400
+
+            # Local import to avoid circular dependency
+            from models import Cart
+
+            # Validate product_type corresponds to a valid model
+            product_model = globals().get(product_type)
+            if not product_model:
+                return jsonify({'error': 'Invalid product type.'}), 400
+
+            # Check if the product exists
+            product = product_model.query.get(product_id)
+            if not product:
+                return jsonify({'error': 'Product not found.'}), 404
+
+            if product.quantity < quantity:
+                return jsonify({'error': 'Requested quantity exceeds available stock.'}), 400
+
+            # Check if item is already in cart
+            cart_item = Cart.query.filter_by(user_id=current_user.uid, product_type=product_type, product_id=product_id).first()
+            if cart_item:
+                cart_item.quantity += quantity
+            else:
+                new_cart_item = Cart(
+                    user_id=current_user.uid,
+                    product_type=product_type,
+                    product_id=product_id,
+                    quantity=quantity
+                )
+                db.session.add(new_cart_item)
+
+            # Optionally, reduce the available stock immediately or upon checkout
+            # product.quantity -= quantity
+
+            db.session.commit()
+
+            return jsonify({'message': f'Added {quantity} x {product.type} to cart.'}), 200
+
+        except Exception as e:
+            print(f"Error adding to cart: {e}")
+            return jsonify({'error': 'An error occurred while adding the item to the cart.'}), 500
+
+
+
+    @app.route("/cart", methods=["GET"])
+    def view_cart():
+        from models import Cart  # Local import
+
+        cart_items = Cart.query.filter_by(user_id=current_user.uid).all()
+        cart_details = []
+        subtotal = 0
+
+        for item in cart_items:
+            product = item.get_product()
+            if product:
+                total_price = product.price * item.quantity
+                subtotal += total_price
+                cart_details.append({
+                    'cart_id': item.id,
+                    'product_id': item.product_id,
+                    'product_type': item.product_type,
+                    'name': product.type,
+                    'price': product.price,
+                    'size': product.size if hasattr(product, 'size') else 'N/A',
+                    'quantity': item.quantity,
+                    'total_price': total_price,
+                    'image': f"images/{item.product_type.lower()}/{product.type.replace(' ', '_').lower()}.jpg"
+                })
+
+        return render_template('cart.html', cart=cart_details, subtotal=subtotal)
+
+
+    @app.route("/cart/update", methods=["POST"])
+    def update_cart():
+        from models import Cart  # Local import
+
+        try:
+            data = request.get_json()
+            cart_id = data.get('cart_id')
+            new_quantity = data.get('quantity')
+
+            if not cart_id or not new_quantity:
+                return jsonify({'error': 'Cart ID and new quantity are required.'}), 400
+
+            try:
+                new_quantity = int(new_quantity)
+                if new_quantity < 1:
+                    return jsonify({'error': 'Quantity must be at least 1.'}), 400
+            except ValueError:
+                return jsonify({'error': 'Invalid quantity value.'}), 400
+
+            cart_item = Cart.query.filter_by(id=cart_id, user_id=current_user.uid).first()
+            if not cart_item:
+                return jsonify({'error': 'Cart item not found.'}), 404
+
+            product = cart_item.get_product()
+            if not product:
+                return jsonify({'error': 'Associated product not found.'}), 404
+
+            if new_quantity > product.quantity:
+                return jsonify({'error': 'Requested quantity exceeds available stock.'}), 400
+
+            cart_item.quantity = new_quantity
+            db.session.commit()
+
+            total_price = product.price * cart_item.quantity
+
+            # Calculate new subtotal
+            subtotal = db.session.query(func.sum(product_model.price * Cart.quantity)).\
+                join(product_model, (product_model.id == Cart.product_id)).\
+                filter(Cart.user_id == current_user.uid).scalar() or 0
+
+            return jsonify({
+                'message': 'Cart updated successfully.',
+                'total_price': total_price,
+                'subtotal': subtotal
+            }), 200
+
+        except Exception as e:
+            print(f"Error updating cart: {e}")
+            return jsonify({'error': 'An error occurred while updating the cart.'}), 500
+
+
+    @app.route("/cart/remove", methods=["POST"])
+    @login_required
+    def remove_from_cart():
+        try:
+            data = request.get_json()
+            cart_id = data.get('cart_id')
+
+            if not cart_id:
+                return jsonify({'error': 'Cart ID is required.'}), 400
+
+            cart_item = Cart.query.filter_by(id=cart_id, user_id=current_user.uid).first()
+            if not cart_item:
+                return jsonify({'error': 'Cart item not found.'}), 404
+
+            db.session.delete(cart_item)
+            db.session.commit()
+
+            # Recalculate subtotal
+            subtotal = db.session.query(func.sum(product_model.price * Cart.quantity)).\
+                join(product_model, (product_model.id == Cart.product_id)).\
+                filter(Cart.user_id == current_user.uid).scalar() or 0
+
+            return jsonify({'message': 'Item removed from cart.', 'subtotal': subtotal}), 200
+
+        except Exception as e:
+            print(f"Error removing from cart: {e}")
+            return jsonify({'error': 'An error occurred while removing the item from the cart.'}), 500
+
+    # Checkout Routes
+
+    @app.route("/checkout", methods=["GET", "POST"])
+    @login_required
+    def checkout():
+        cart_items = Cart.query.filter_by(user_id=current_user.uid).all()
+        if not cart_items:
+            flash('Your cart is empty.', 'info')
+            return redirect(url_for('men'))
+
+        cart_details = []
+        subtotal = 0
+
+        for item in cart_items:
+            product = item.get_product()
+            if product:
+                total_price = product.price * item.quantity
+                subtotal += total_price
+                cart_details.append({
+                    'cart_id': item.id,
+                    'product_id': item.product_id,
+                    'product_type': item.product_type,
+                    'name': product.type,
+                    'price': product.price,
+                    'size': item.size if hasattr(product, 'size') else 'N/A',
+                    'quantity': item.quantity,
+                    'total_price': total_price,
+                    'image': f"images/{item.product_type.lower()}/{product.type.replace(' ', '_').lower()}.jpg"
+                })
+
+        if request.method == 'POST':
+            # Here, you would handle payment processing and order confirmation
+            # For simplicity, we'll assume payment is successful
+
+            try:
+                for item in cart_items:
+                    product = item.get_product()
+                    if not product:
+                        continue  # Skip if product not found
+
+                    # Check stock again
+                    if item.quantity > product.quantity:
+                        flash(f'Not enough stock for {product.type}.', 'danger')
+                        return redirect(url_for('view_cart'))
+
+                    # Deduct stock
+                    product.quantity -= item.quantity
+
+                    # Create Invoice
+                    invoice = Invoice(
+                        user_id=current_user.uid,
+                        product_id=item.product_id,
+                        product_type=item.product_type,
+                        quantity=item.quantity,
+                        price=product.price,
+                        status='Paid'  # Assuming payment is done
+                    )
+                    db.session.add(invoice)
+
+                    # Remove item from cart
+                    db.session.delete(item)
+
+                db.session.commit()
+                flash('Checkout successful! Your order has been placed.', 'success')
+                return redirect(url_for('index'))
+
+            except Exception as e:
+                print(f"Error during checkout: {e}")
+                db.session.rollback()
+                flash('An error occurred during checkout. Please try again.', 'danger')
+                return redirect(url_for('view_cart'))
+
+        return render_template('checkout.html', cart=cart_details, subtotal=subtotal)
     
     
     # @app.route('/', methods =['GET', 'POST'])

@@ -157,6 +157,7 @@ class FootwearSubCategory(db.Model):
     size = db.Column(db.String, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
     for_gender = db.Column(db.String, nullable=False)
+    image = db.Column(db.String, nullable=True)
     
     def __repr__(self):
         return f'<FootwearSubCategory: {self.type}, Price: {self.price}, Size: {self.size}, Quantity: {self.quantity}, For: {self.for_gender}>'
@@ -172,6 +173,7 @@ class ActivewearSubCategory(db.Model):
     size = db.Column(db.String, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
     for_gender = db.Column(db.String, nullable=False)
+    image = db.Column(db.String, nullable=True)
     
     def __repr__(self):
         return f'<ActivewearSubCategory: {self.type}, Price: {self.price}, Size: {self.size}, Quantity: {self.quantity}, For: {self.for_gender}>'
@@ -187,6 +189,7 @@ class BottomsSubCategory(db.Model):
     size = db.Column(db.String, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
     for_gender = db.Column(db.String, nullable=False)
+    image = db.Column(db.String, nullable=True)
     
     def __repr__(self):
         return f'<BottomsSubCategory: {self.type}, Price: {self.price}, Size: {self.size}, Quantity: {self.quantity}, For: {self.for_gender}>'
@@ -202,6 +205,7 @@ class OuterwearSubCategory(db.Model):
     size = db.Column(db.String, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
     for_gender = db.Column(db.String, nullable=False)
+    image = db.Column(db.String, nullable=True)
     
     def __repr__(self):
         return f'<OuterwearSubCategory: {self.type}, Price: {self.price}, Size: {self.size}, Quantity: {self.quantity}, For: {self.for_gender}>'
@@ -217,6 +221,7 @@ class RecoverySubCategory(db.Model):
     size = db.Column(db.String, nullable=True)  # Optional for recovery items
     quantity = db.Column(db.Integer, nullable=False, default=0)
     for_gender = db.Column(db.String, nullable=True)  # Optional for recovery items
+    image = db.Column(db.String, nullable=True)
     
     def __repr__(self):
         return f'<RecoverySubCategory: {self.type}, Price: {self.price}, Size: {self.size}, Quantity: {self.quantity}, For: {self.for_gender}>'
@@ -296,7 +301,8 @@ class AccessoriesSubCategory(db.Model):
     price = db.Column(db.Float, nullable=False)
     size = db.Column(db.String, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
-    for_gender = db.Column(db.String, nullable=False)  # "Men", "Women", or "Kids"
+    for_gender = db.Column(db.String, nullable=False)
+    image = db.Column(db.String, nullable=True)
     
     def __repr__(self):
         return f'<AccessoriesSubCategory: {self.type}, Price: {self.price}, Size: {self.size}, Quantity: {self.quantity}, For: {self.for_gender}>'
@@ -312,6 +318,7 @@ class SwimwearSubCategory(db.Model):
     size = db.Column(db.String, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
     for_gender = db.Column(db.String, nullable=False)
+    image = db.Column(db.String, nullable=True)
     
     def __repr__(self):
         return f'<SwimwearSubCategory: {self.type}, Price: {self.price}, Size: {self.size}, Quantity: {self.quantity}, For: {self.for_gender}>'
@@ -327,6 +334,7 @@ class CompressionSubCategory(db.Model):
     size = db.Column(db.String, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
     for_gender = db.Column(db.String, nullable=False)
+    image = db.Column(db.String, nullable=True)
     
     def __repr__(self):
         return f'<CompressionSubCategory: {self.type}, Price: {self.price}, Size: {self.size}, Quantity: {self.quantity}, For: {self.for_gender}>'
@@ -342,6 +350,7 @@ class SpecialtySportswearSubCategory(db.Model):
     size = db.Column(db.String, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
     for_gender = db.Column(db.String, nullable=False)
+    image = db.Column(db.String, nullable=True)
     
     def __repr__(self):
         return f'<SpecialtySportswearSubCategory: {self.type}, Price: {self.price}, Size: {self.size}, Quantity: {self.quantity}, For: {self.for_gender}>'
@@ -357,6 +366,7 @@ class ProtectiveGearSubCategory(db.Model):
     size = db.Column(db.String, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
     for_gender = db.Column(db.String, nullable=False)
+    image = db.Column(db.String, nullable=True)
     
     def __repr__(self):
         return f'<ProtectiveGearSubCategory: {self.type}, Price: {self.price}, Size: {self.size}, Quantity: {self.quantity}, For: {self.for_gender}>'

@@ -14,6 +14,10 @@ from models import (
 import jwt
 import datetime
 from sqlalchemy import func
+from werkzeug.utils import secure_filename
+import uuid
+from PIL import Image
+import os
 
 
 def create_token(user_id,app):
@@ -44,6 +48,28 @@ def decode_token(token,app):
 
 
 def register_routes(app, db,bcrypt):
+
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+    def validate_image(stream):
+        try:
+            img = Image.open(stream)
+            img.verify()
+            return True
+        except Exception:
+            return False
+
+    def optimize_image(image_path, quality=85):
+        try:
+            img = Image.open(image_path)
+            img.save(image_path, optimize=True, quality=quality)
+        except Exception as e:
+            print(f"Error optimizing image: {e}")
+
+    def allowed_file(filename):
+        return '.' in filename and \
+               filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
     def get_items_for_gender(gender):
         """
@@ -77,7 +103,7 @@ def register_routes(app, db,bcrypt):
                     'quantity': item.quantity,
                     'product_id': item.id,               # Ensure 'id' is correct
                     'product_type': model.__name__,      # e.g., 'FootwearSubCategory'
-                    'image': f"{category.lower().replace(' & ', '_').replace(' ', '_')}/{item.type.replace(' ', '_').lower()}.jpg"
+                    'image': item.image if item.image else 'default.jpg'  # Use image field
                 })
         
         return items
@@ -148,65 +174,379 @@ def register_routes(app, db,bcrypt):
 
 
     ######admin page
+   # routes.py
+
+    # routes.py
+
     @app.route('/messi/admin')
     @login_required
     def admin():
-        if current_user.uid != 1:  # Assuming UID 1 is the admin
+        if current_user.uid != 1:
+            flash("Access denied. Admins only.", 'danger')
+            return redirect(url_for('index'))
+
+        # Fetch all users and product categories
+        users = User.query.all()
+        footwear = Footwear.query.all()
+        activewear_tops = ActivewearTops.query.all()
+        bottoms = Bottoms.query.all()
+        outerwear = Outerwear.query.all()
+        recovery_and_wellness = RecoveryAndWellness.query.all()
+        accessories = Accessories.query.all()
+        swimwear = Swimwear.query.all()
+        compression_wear = CompressionWear.query.all()
+        specialty_sportswear = SpecialtySportswear.query.all()
+        protective_gear = ProtectiveGear.query.all()
+        invoices = Invoice.query.order_by(Invoice.date.desc()).all()
+
+        # Subcategories
+        footwear_subcategories = FootwearSubCategory.query.all()
+        activewear_subcategories = ActivewearSubCategory.query.all()
+        bottoms_subcategories = BottomsSubCategory.query.all()
+        outerwear_subcategories = OuterwearSubCategory.query.all()
+        recovery_subcategories = RecoverySubCategory.query.all()
+        accessories_subcategories = AccessoriesSubCategory.query.all()
+        swimwear_subcategories = SwimwearSubCategory.query.all()
+        compression_subcategories = CompressionSubCategory.query.all()
+        specialty_sportswear_subcategories = SpecialtySportswearSubCategory.query.all()
+        protective_gear_subcategories = ProtectiveGearSubCategory.query.all()
+
+        # Prepare subcategories data
+        subcategories_data = {
+            # ... (existing code)
+        }
+
+        return render_template('admin.html',
+            users=users,
+            footwear=footwear,
+            activewear_tops=activewear_tops,
+            bottoms=bottoms,
+            outerwear=outerwear,
+            recovery_and_wellness=recovery_and_wellness,
+            accessories=accessories,
+            swimwear=swimwear,
+            compression_wear=compression_wear,
+            specialty_sportswear=specialty_sportswear,
+            protective_gear=protective_gear,
+            footwear_subcategories=footwear_subcategories,
+            activewear_subcategories=activewear_subcategories,
+            bottoms_subcategories=bottoms_subcategories,
+            outerwear_subcategories=outerwear_subcategories,
+            recovery_subcategories=recovery_subcategories,
+            accessories_subcategories=accessories_subcategories,
+            swimwear_subcategories=swimwear_subcategories,
+            compression_subcategories=compression_subcategories,
+            specialty_sportswear_subcategories=specialty_sportswear_subcategories,
+            protective_gear_subcategories=protective_gear_subcategories,
+            invoices=invoices,
+            subcategories_data=subcategories_data
+        )
+
+
+
+    # Route to Edit Item Price
+    @app.route('/admin/edit_item', methods=['POST'])
+    @login_required
+    def edit_item():
+        if current_user.uid != 1:
             flash("Access denied. Admins only.", 'danger')
             return redirect(url_for('index'))
         
-        # Fetch all users
-        users = User.query.all()
+        product_type = request.form.get('product_type')
+        item_id = request.form.get('item_id')
+        new_price = request.form.get('new_price')
+        new_image = request.files.get('new_image')  # Get the uploaded image file
+
+        if not all([product_type, item_id, new_price]):
+            flash("Product type, item ID, and new price are required.", 'danger')
+            return redirect(url_for('admin'))
+
+        try:
+            new_price = float(new_price)
+            if new_price < 0:
+                flash("Price cannot be negative.", 'danger')
+                return redirect(url_for('admin'))
+        except ValueError:
+            flash("Invalid price format.", 'danger')
+            return redirect(url_for('admin'))
         
-        # Fetch all product categories and their subcategories
-        footwear = Footwear.query.all()
-        footwear_subcategories = FootwearSubCategory.query.all()
-        activewear_tops = ActivewearTops.query.all()
-        activewear_subcategories = ActivewearSubCategory.query.all()
-        bottoms = Bottoms.query.all()
-        bottoms_subcategories = BottomsSubCategory.query.all()
-        outerwear = Outerwear.query.all()
-        outerwear_subcategories = OuterwearSubCategory.query.all()
-        recovery_and_wellness = RecoveryAndWellness.query.all()
-        recovery_subcategories = RecoverySubCategory.query.all()
-        accessories = Accessories.query.all()
-        accessories_subcategories = AccessoriesSubCategory.query.all()
-        swimwear = Swimwear.query.all()
-        swimwear_subcategories = SwimwearSubCategory.query.all()
-        compression_wear = CompressionWear.query.all()
-        compression_subcategories = CompressionSubCategory.query.all()
-        specialty_sportswear = SpecialtySportswear.query.all()
-        specialty_sportswear_subcategories = SpecialtySportswearSubCategory.query.all()
-        protective_gear = ProtectiveGear.query.all()
-        protective_gear_subcategories = ProtectiveGearSubCategory.query.all()
+        # Map product_type to the corresponding model
+        model_mapping = {
+            'footwear': Footwear,
+            'footwear_subcategory': FootwearSubCategory,
+            'activewear_tops': ActivewearTops,
+            'activewear_subcategory': ActivewearSubCategory,
+            'bottoms': Bottoms,
+            'bottoms_subcategory': BottomsSubCategory,
+            'outerwear': Outerwear,
+            'outerwear_subcategory': OuterwearSubCategory,
+            'recovery_and_wellness': RecoveryAndWellness,
+            'recovery_subcategory': RecoverySubCategory,
+            'accessories': Accessories,
+            'accessories_subcategory': AccessoriesSubCategory,
+            'swimwear': Swimwear,
+            'swimwear_subcategory': SwimwearSubCategory,
+            'compression_wear': CompressionWear,
+            'compression_subcategory': CompressionSubCategory,
+            'specialty_sportswear': SpecialtySportswear,
+            'specialty_sportswear_subcategory': SpecialtySportswearSubCategory,
+            'protective_gear': ProtectiveGear,
+            'protective_gear_subcategory': ProtectiveGearSubCategory
+        }
+
+        model = model_mapping.get(product_type)
+        if not model:
+            flash("Invalid product type.", 'danger')
+            return redirect(url_for('admin'))
         
-        # Fetch all invoices
-        invoices = Invoice.query.order_by(Invoice.date.desc()).all()
+        # Query the item
+        item = model.query.get(int(item_id))
+        if not item:
+            flash("Item not found.", 'danger')
+            return redirect(url_for('admin'))
         
-        return render_template('admin.html', 
-            users=users,
-            footwear=footwear,
-            footwear_subcategories=footwear_subcategories,
-            activewear_tops=activewear_tops,
-            activewear_subcategories=activewear_subcategories,
-            bottoms=bottoms,
-            bottoms_subcategories=bottoms_subcategories,
-            outerwear=outerwear,
-            outerwear_subcategories=outerwear_subcategories,
-            recovery_and_wellness=recovery_and_wellness,
-            recovery_subcategories=recovery_subcategories,
-            accessories=accessories,
-            accessories_subcategories=accessories_subcategories,
-            swimwear=swimwear,
-            swimwear_subcategories=swimwear_subcategories,
-            compression_wear=compression_wear,
-            compression_subcategories=compression_subcategories,
-            specialty_sportswear=specialty_sportswear,
-            specialty_sportswear_subcategories=specialty_sportswear_subcategories,
-            protective_gear=protective_gear,
-            protective_gear_subcategories=protective_gear_subcategories,
-            invoices=invoices  # Pass invoices to the template
-        )
+        # Update the price
+        item.price = new_price
+
+        # Handle image upload if a new image is provided
+        if new_image and allowed_file(new_image.filename):
+            if not validate_image(new_image.stream):
+                flash("Uploaded file is not a valid image.", 'danger')
+                return redirect(url_for('admin'))
+            
+            # Reset stream position after validation
+            new_image.stream.seek(0)
+            
+            filename = secure_filename(new_image.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            
+            # Determine the main category based on product_type
+            # Extract main category from product_type (e.g., 'footwear_subcategory' -> 'footwear')
+            main_category_key = product_type.replace('_subcategory', '')
+            category_folder = os.path.join(app.root_path, 'static', 'images', main_category_key.lower())
+            os.makedirs(category_folder, exist_ok=True)
+            
+            image_path = os.path.join(category_folder, unique_filename)
+            new_image.save(image_path)
+            
+            # Optimize the image
+            optimize_image(image_path)
+            
+            # Optionally, delete the old image file if it exists and is not default
+            if item.image and item.image != 'default.jpg':
+                old_image_path = os.path.join(app.root_path, 'static', 'images', item.image)
+                if os.path.exists(old_image_path):
+                    try:
+                        os.remove(old_image_path)
+                    except Exception as e:
+                        print(f"Error deleting old image: {e}")
+            
+            # Update the image path in the database
+            item.image = f"{main_category_key.lower()}/{unique_filename}"
+        
+        elif new_image:
+            # If an image was uploaded but it's invalid
+            flash("Invalid image file.", 'danger')
+            return redirect(url_for('admin'))
+        
+        try:
+            db.session.commit()
+            flash("Item updated successfully.", 'success')
+            return redirect(url_for('admin'))
+        except Exception as e:
+            print(f"Error updating item: {e}")
+            db.session.rollback()
+            flash("An error occurred while updating the item.", 'danger')
+            return redirect(url_for('admin'))
+
+
+    # Route to Remove Item
+    @app.route('/admin/remove_item', methods=['POST'])
+    @login_required
+    def remove_item():
+        if current_user.uid != 1:
+            flash("Access denied. Admins only.", 'danger')
+            return redirect(url_for('index'))
+        
+        product_type = request.form.get('product_type')
+        item_id = request.form.get('item_id')
+
+        if not all([product_type, item_id]):
+            flash("Invalid data provided for removal.", 'danger')
+            return redirect(url_for('admin'))
+        
+        try:
+            # Map product_type to the corresponding model
+            model_mapping = {
+                'footwear': Footwear,
+                'footwear_subcategory': FootwearSubCategory,
+                'activewear_tops': ActivewearTops,
+                'activewear_subcategory': ActivewearSubCategory,
+                'bottoms': Bottoms,
+                'bottoms_subcategory': BottomsSubCategory,
+                'outerwear': Outerwear,
+                'outerwear_subcategory': OuterwearSubCategory,
+                'recovery_and_wellness': RecoveryAndWellness,
+                'recovery_subcategory': RecoverySubCategory,
+                'accessories': Accessories,
+                'accessories_subcategory': AccessoriesSubCategory,
+                'swimwear': Swimwear,
+                'swimwear_subcategory': SwimwearSubCategory,
+                'compression_wear': CompressionWear,
+                'compression_subcategory': CompressionSubCategory,
+                'specialty_sportswear': SpecialtySportswear,
+                'specialty_sportswear_subcategory': SpecialtySportswearSubCategory,
+                'protective_gear': ProtectiveGear,
+                'protective_gear_subcategory': ProtectiveGearSubCategory
+            }
+
+            model = model_mapping.get(product_type)
+            if not model:
+                flash("Invalid product type.", 'danger')
+                return redirect(url_for('admin'))
+            
+            # Query the item
+            item = model.query.get(int(item_id))
+            if not item:
+                flash("Item not found.", 'danger')
+                return redirect(url_for('admin'))
+            
+            # Remove the item
+            db.session.delete(item)
+            db.session.commit()
+            flash(f"{item.type} has been removed successfully.", 'success')
+            return redirect(url_for('admin'))
+        
+        except Exception as e:
+            print(f"Error removing item: {e}")
+            db.session.rollback()
+            flash("An error occurred while removing the item.", 'danger')
+            return redirect(url_for('admin'))
+
+
+    @app.route('/messi/admin/add_product', methods=['POST'])
+    @login_required
+    def add_product():
+        if current_user.uid != 1:
+            flash("Access denied. Admins only.", 'danger')
+            return redirect(url_for('index'))
+
+
+        main_category = request.form.get('main_category')
+        product_type = request.form.get('type')
+        price = request.form.get('price')
+        size = request.form.get('size')
+        quantity = request.form.get('quantity')
+        for_gender = request.form.get('for_gender')
+        image_file = request.files.get('image')
+
+
+        if not all([main_category, product_type, price, size, quantity, for_gender, image_file]):
+            flash("All fields are required.", 'danger')
+            return redirect(url_for('admin'))
+
+
+        if image_file and allowed_file(image_file.filename):
+            filename = secure_filename(image_file.filename)
+
+            category_folder = os.path.join(app.root_path, 'static', 'images', main_category.lower())
+            os.makedirs(category_folder, exist_ok=True)
+
+            image_path = os.path.join(category_folder, filename)
+            image_file.save(image_path)
+        else:
+            flash("Invalid image file.", 'danger')
+            return redirect(url_for('admin'))
+
+        try:
+
+            price = float(price)
+            quantity = int(quantity)
+
+            if price < 0 or quantity < 0:
+                flash("Price and Quantity must be non-negative.", 'danger')
+                return redirect(url_for('admin'))
+
+            main_category_models = {
+                'footwear': Footwear,
+                'activewear_tops': ActivewearTops,
+                'bottoms': Bottoms,
+                'outerwear': Outerwear,
+                'recovery_and_wellness': RecoveryAndWellness,
+                'accessories': Accessories,
+                'swimwear': Swimwear,
+                'compression_wear': CompressionWear,
+                'specialty_sportswear': SpecialtySportswear,
+                'protective_gear': ProtectiveGear
+            }
+
+            subcategory_models = {
+                'footwear': FootwearSubCategory,
+                'activewear_tops': ActivewearSubCategory,
+                'bottoms': BottomsSubCategory,
+                'outerwear': OuterwearSubCategory,
+                'recovery_and_wellness': RecoverySubCategory,
+                'accessories': AccessoriesSubCategory,
+                'swimwear': SwimwearSubCategory,
+                'compression_wear': CompressionSubCategory,
+                'specialty_sportswear': SpecialtySportswearSubCategory,
+                'protective_gear': ProtectiveGearSubCategory
+            }
+
+            foreign_key_fields = {
+                'footwear': 'footwear_id',
+                'activewear_tops': 'activewear_id',
+                'bottoms': 'bottoms_id',
+                'outerwear': 'outerwear_id',
+                'recovery_and_wellness': 'recovery_id',
+                'accessories': 'accessories_id',
+                'swimwear': 'swimwear_id',
+                'compression_wear': 'compression_wear_id',
+                'specialty_sportswear': 'specialty_sportswear_id',
+                'protective_gear': 'protective_gear_id'
+            }
+
+            MainCategoryModel = main_category_models.get(main_category)
+            SubCategoryModel = subcategory_models.get(main_category)
+            foreign_key_field = foreign_key_fields.get(main_category)
+
+            if not MainCategoryModel or not SubCategoryModel or not foreign_key_field:
+                flash("Invalid main category selected.", 'danger')
+                return redirect(url_for('admin'))
+
+            # Get or create the main category item
+            main_category_type = main_category.replace('_', ' ').title()
+            main_category_item = MainCategoryModel.query.filter_by(type=main_category_type).first()
+            if not main_category_item:
+                main_category_item = MainCategoryModel(type=main_category_type, quantity=0)
+                db.session.add(main_category_item)
+                db.session.commit()
+
+            # Create a new product in the selected subcategory
+            new_product_data = {
+                foreign_key_field: main_category_item.id,
+                'type': product_type,
+                'price': price,
+                'size': size,
+                'quantity': quantity,
+                'for_gender': for_gender,
+                'image': f"{main_category.lower()}/{filename}"  # Store relative path
+            }
+            new_product = SubCategoryModel(**new_product_data)
+
+            db.session.add(new_product)
+            db.session.commit()
+            flash(f"Product '{product_type}' added successfully.", 'success')
+            return redirect(url_for('admin'))
+
+        except ValueError:
+            flash("Invalid input for price or quantity.", 'danger')
+            return redirect(url_for('admin'))
+        except Exception as e:
+            print(f"Error adding product: {e}")
+            db.session.rollback()
+            flash("An error occurred while adding the product.", 'danger')
+            return redirect(url_for('admin'))
 
 
 

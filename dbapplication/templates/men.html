@@ -169,6 +169,8 @@ content %}
                 "success",
                 data.message || "Item added to cart."
               );
+              // Optionally update cart count dynamically
+              // e.g., window.location.reload();
             } else {
               displayFlashMessage(
                 "danger",

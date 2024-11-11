@@ -67,6 +67,23 @@
   </head>
   <body>
     <div class="container mt-4">
+      <!-- Place this snippet at the top of your container div -->
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div
+        class="alert alert-{{ category }} alert-dismissible fade show"
+        role="alert"
+      >
+        {{ message }}
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+          aria-label="Close"
+        ></button>
+      </div>
+      {% endfor %} {% endif %} {% endwith %}
+
       <h1>Admin Dashboard</h1>
 
       <!-- Navigation Buttons -->
@@ -79,6 +96,15 @@
         data-bs-target="#addProductModal"
       >
         Add Product
+      </button>
+      <!-- New Bulk Upload Button -->
+      <button
+        id="bulk-upload-btn"
+        class="btn btn-secondary"
+        data-bs-toggle="modal"
+        data-bs-target="#bulkUploadModal"
+      >
+        Bulk Upload
       </button>
 
       <!-- Container for All Tables -->
@@ -1298,6 +1324,82 @@
             {% endfor %}
           </tbody>
         </table>
+      </div>
+
+      <!-- Bulk Upload Modal -->
+      <div
+        class="modal fade"
+        id="bulkUploadModal"
+        tabindex="-1"
+        aria-labelledby="bulkUploadModalLabel"
+        aria-hidden="true"
+      >
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <form
+              action="{{ url_for('bulk_upload') }}"
+              method="POST"
+              enctype="multipart/form-data"
+            >
+              <div class="modal-header">
+                <h5 class="modal-title" id="bulkUploadModalLabel">
+                  Bulk Upload Products
+                </h5>
+                <button
+                  type="button"
+                  class="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"
+                ></button>
+              </div>
+              <div class="modal-body">
+                <div class="mb-3">
+                  <label for="bulk-csv" class="form-label"
+                    >Upload CSV File:</label
+                  >
+                  <input
+                    type="file"
+                    name="bulk_csv"
+                    class="form-control"
+                    id="bulk-csv"
+                    accept=".csv"
+                    required
+                  />
+                </div>
+                <div class="mb-3">
+                  <p><strong>CSV Format:</strong></p>
+                  <p>The CSV file should have the following columns:</p>
+                  <ul>
+                    <li>
+                      <code>main_category</code> (e.g., footwear,
+                      activewear_tops)
+                    </li>
+                    <li><code>type</code> (Product Type)</li>
+                    <li><code>price</code> (e.g., 49.99)</li>
+                    <li><code>size</code> (e.g., M, L, XL)</li>
+                    <li><code>quantity</code> (Integer)</li>
+                    <li><code>for_gender</code> (Men, Women, Kids)</li>
+                    <li><code>image_url</code> (URL to the product image)</li>
+                  </ul>
+                  <p>
+                    Ensure that the <code>main_category</code> matches one of
+                    the existing categories.
+                  </p>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Upload</button>
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  data-bs-dismiss="modal"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
 
       <!-- Edit Price and Image Modal -->

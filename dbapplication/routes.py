@@ -10,7 +10,9 @@ from models import (
     SpecialtySportswearSubCategory, ProtectiveGearSubCategory, Cart, Invoice
 )
 
-
+import csv
+import requests
+from io import StringIO
 import jwt
 import datetime
 from sqlalchemy import func
@@ -49,7 +51,8 @@ def decode_token(token,app):
 
 def register_routes(app, db,bcrypt):
 
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'csv'}
+
 
     def validate_image(stream):
         try:
@@ -125,7 +128,210 @@ def register_routes(app, db,bcrypt):
             db.session.add(user)
             db.session.commit()
             return redirect(url_for('login'))
-            
+
+
+
+    @app.route('/messi/admin/bulk_upload', methods=['POST'])
+    @login_required
+    def bulk_upload():
+        if current_user.uid != 1:
+            flash("Access denied. Admins only.", 'danger')
+            return redirect(url_for('index'))
+
+        if 'bulk_csv' not in request.files:
+            flash("No file part in the request.", 'danger')
+            return redirect(url_for('admin'))
+
+        file = request.files['bulk_csv']
+
+        if file.filename == '':
+            flash("No file selected.", 'danger')
+            return redirect(url_for('admin'))
+
+        if not allowed_file(file.filename):
+            flash("Invalid file type. Please upload a CSV file.", 'danger')
+            return redirect(url_for('admin'))
+
+        try:
+            # Read CSV content
+            stream = StringIO(file.stream.read().decode("UTF8"), newline=None)
+            csv_input = csv.DictReader(stream)
+
+            required_fields = ['main_category', 'type', 'price', 'size', 'quantity', 'for_gender', 'image_url']
+            for field in required_fields:
+                if field not in csv_input.fieldnames:
+                    flash(f"Missing required field: {field}", 'danger')
+                    return redirect(url_for('admin'))
+
+            success_count = 0
+            failure_count = 0
+            failure_messages = []
+
+            # Mapping main categories to their models and main category tables
+            main_category_models = {
+                'footwear': FootwearSubCategory,
+                'activewear_tops': ActivewearSubCategory,
+                'bottoms': BottomsSubCategory,
+                'outerwear': OuterwearSubCategory,
+                'recovery_and_wellness': RecoverySubCategory,
+                'accessories': AccessoriesSubCategory,
+                'swimwear': SwimwearSubCategory,
+                'compression_wear': CompressionSubCategory,
+                'specialty_sportswear': SpecialtySportswearSubCategory,
+                'protective_gear': ProtectiveGearSubCategory
+            }
+
+            main_category_table = {
+                'footwear': Footwear,
+                'activewear_tops': ActivewearTops,
+                'bottoms': Bottoms,
+                'outerwear': Outerwear,
+                'recovery_and_wellness': RecoveryAndWellness,
+                'accessories': Accessories,
+                'swimwear': Swimwear,
+                'compression_wear': CompressionWear,
+                'specialty_sportswear': SpecialtySportswear,
+                'protective_gear': ProtectiveGear
+            }
+
+            # Mapping main categories to their foreign key field names
+            foreign_key_mapping = {
+                'footwear': 'footwear_id',
+                'activewear_tops': 'activewear_id',
+                'bottoms': 'bottoms_id',
+                'outerwear': 'outerwear_id',
+                'recovery_and_wellness': 'recovery_id',
+                'accessories': 'accessories_id',
+                'swimwear': 'swimwear_id',
+                'compression_wear': 'compression_wear_id',
+                'specialty_sportswear': 'specialty_sportswear_id',
+                'protective_gear': 'protective_gear_id'
+            }
+
+            for idx, row in enumerate(csv_input, start=1):
+                main_category = row['main_category'].strip().lower()
+                product_type = row['type'].strip()
+                price = row['price'].strip()
+                size = row['size'].strip()
+                quantity = row['quantity'].strip()
+                for_gender = row['for_gender'].strip()
+                image_url = row.get('image_url', '').strip()  # image_url is optional
+
+                # Validate main_category
+                SubCategoryModel = main_category_models.get(main_category)
+                MainCategoryModel = main_category_table.get(main_category)
+                foreign_key_field = foreign_key_mapping.get(main_category)
+
+                if not SubCategoryModel or not MainCategoryModel or not foreign_key_field:
+                    failure_count += 1
+                    failure_messages.append(f"Row {idx}: Invalid main category '{main_category}'.")
+                    continue
+
+                # Fetch the corresponding main category entry
+                main_category_entry = MainCategoryModel.query.filter_by(type=product_type).first()
+                if not main_category_entry:
+                    # Create the main category entry
+                    main_category_entry = MainCategoryModel(type=product_type, quantity=0)
+                    db.session.add(main_category_entry)
+                    db.session.commit()
+
+                # Validate and convert price
+                try:
+                    price = float(price)
+                    if price < 0:
+                        raise ValueError
+                except ValueError:
+                    failure_count += 1
+                    failure_messages.append(f"Row {idx}: Invalid price '{row['price']}'.")
+                    continue
+
+                # Validate and convert quantity
+                try:
+                    quantity = int(quantity)
+                    if quantity < 0:
+                        raise ValueError
+                except ValueError:
+                    failure_count += 1
+                    failure_messages.append(f"Row {idx}: Invalid quantity '{row['quantity']}'.")
+                    continue
+
+                # Validate for_gender
+                if for_gender not in ['Men', 'Women', 'Kids']:
+                    failure_count += 1
+                    failure_messages.append(f"Row {idx}: Invalid for_gender '{for_gender}'.")
+                    continue
+
+                # Handle image
+                if image_url:
+                    # Download image from image_url
+                    try:
+                        response = requests.get(image_url)
+                        if response.status_code == 200:
+                            image_filename = secure_filename(os.path.basename(image_url))
+                            unique_filename = f"{uuid.uuid4().hex}_{image_filename}"
+                            category_folder = os.path.join(app.root_path, 'static', 'images', main_category.lower())
+                            os.makedirs(category_folder, exist_ok=True)
+                            image_path = os.path.join(category_folder, unique_filename)
+
+                            with open(image_path, 'wb') as img_file:
+                                img_file.write(response.content)
+
+                            # Optionally, optimize the image
+                            optimize_image(image_path)
+
+                            image_relative_path = f"{main_category.lower()}/{unique_filename}"
+                        else:
+                            raise Exception("Image URL could not be accessed.")
+                    except Exception as e:
+                        failure_count += 1
+                        failure_messages.append(f"Row {idx}: Failed to download image from URL '{image_url}'. Error: {str(e)}")
+                        continue
+                else:
+                    # Assign a default image
+                    image_relative_path = "default.jpg"  # Ensure this default image exists in your static/images folder
+
+                try:
+                    # Create a new subcategory product with foreign key
+                    # Dynamically set the foreign key based on main_category
+                    product_data = {
+                        "type": product_type,
+                        "price": price,
+                        "size": size,
+                        "quantity": quantity,
+                        "for_gender": for_gender,
+                        "image": image_relative_path
+                    }
+                    product_data[foreign_key_field] = main_category_entry.id
+
+                    new_product = SubCategoryModel(**product_data)
+
+                    db.session.add(new_product)
+                    # Optionally update main category quantity
+                    main_category_entry.quantity += quantity
+                    db.session.commit()
+                    success_count += 1
+
+                except Exception as e:
+                    db.session.rollback()
+                    failure_count += 1
+                    failure_messages.append(f"Row {idx}: Database error: {str(e)}")
+                    continue
+
+            # Summary of Bulk Upload
+            summary_message = f"Bulk Upload Completed: {success_count} succeeded, {failure_count} failed."
+            flash(summary_message, 'info')
+
+            if failure_messages:
+                for message in failure_messages:
+                    flash(message, 'warning')
+
+            return redirect(url_for('admin'))
+
+        except Exception as e:
+            print(f"Bulk upload error: {e}")
+            flash("An error occurred while processing the CSV file.", 'danger')
+            return redirect(url_for('admin'))
+
             
     @app.route('/login', methods=['GET', 'POST'])
     def login():

@@ -7,14 +7,14 @@ from models import (
     OuterwearSubCategory, RecoverySubCategory, Accessories, Swimwear,
     CompressionWear, SpecialtySportswear, ProtectiveGear,
     AccessoriesSubCategory, SwimwearSubCategory, CompressionSubCategory,
-    SpecialtySportswearSubCategory, ProtectiveGearSubCategory, Cart, Invoice
+    SpecialtySportswearSubCategory, ProtectiveGearSubCategory, Cart, Invoice, Report
 )
 
 import csv
 import requests
 from io import StringIO
 import jwt
-import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import func
 from werkzeug.utils import secure_filename
 import uuid
@@ -759,65 +759,107 @@ def register_routes(app, db,bcrypt):
     @app.route('/messi/admin/generate_report', methods=['GET', 'POST'])
     @login_required
     def generate_report():
-        if current_user.role != 'admin':
+        if current_user.uid != 1:
             flash('Unauthorized access.', 'danger')
             return redirect(url_for('index'))
 
         if request.method == 'POST':
-            # 1. Calculate Most Popular Product
-            popular_product = db.session.query(
-                Invoice.product_id,
-                Invoice.product_type,
-                func.sum(Invoice.quantity).label('total_quantity')
-            ).group_by(Invoice.product_id, Invoice.product_type).order_by(func.sum(Invoice.quantity).desc()).first()
+            try:
+                # 1. Calculate Most Popular Product
+                popular_product = db.session.query(
+                    Invoice.product_id,
+                    Invoice.product_type,
+                    func.sum(Invoice.quantity).label('total_quantity')
+                ).group_by(
+                    Invoice.product_id, 
+                    Invoice.product_type
+                ).order_by(
+                    func.sum(Invoice.quantity).desc()
+                ).first()
 
-            if popular_product:
-                most_popular_product_id = popular_product.product_id
-                most_popular_product_type = popular_product.product_type
-                total_quantity = popular_product.total_quantity
-            else:
-                most_popular_product_id = None
-                most_popular_product_type = None
-                total_quantity = 0
+                if not popular_product:
+                    flash('No sales data available to generate report.', 'warning')
+                    return redirect(url_for('admin'))
 
-            # 2. Generate Future Demand (Placeholder Logic)
-            future_demand = "Stable demand expected based on current sales trends."
+                # 2. Calculate Inventory Turnover
+                # Get total sales value
+                total_sales = db.session.query(
+                    func.sum(Invoice.total_price)
+                ).scalar() or 0
 
-            # 3. Create a Report Entry
-            report = Report(
-                most_popular_product_id=most_popular_product_id,
-                most_popular_product_type=most_popular_product_type,
-                future_demand=future_demand
-            )
-            db.session.add(report)
-            db.session.commit()
+                # Get current inventory value (sum of price * quantity for all products)
+                total_inventory_value = 0
+                for model in [FootwearSubCategory, ActivewearSubCategory, BottomsSubCategory,
+                            OuterwearSubCategory, RecoverySubCategory, AccessoriesSubCategory,
+                            SwimwearSubCategory, CompressionSubCategory,
+                            SpecialtySportswearSubCategory, ProtectiveGearSubCategory]:
+                    inventory_value = db.session.query(
+                        func.sum(model.price * model.quantity)
+                    ).scalar() or 0
+                    total_inventory_value += inventory_value
 
-            flash('Inventory report generated successfully.', 'success')
-            return redirect(url_for('view_report', report_id=report.id))
+                inventory_turnover = total_sales / total_inventory_value if total_inventory_value > 0 else 0
 
+                # 3. Generate Future Demand Prediction
+                # Simple prediction based on sales trends
+                thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+                recent_sales = db.session.query(
+                    func.count(Invoice.invoice_id)
+                ).filter(
+                    Invoice.date >= thirty_days_ago
+                ).scalar() or 0
+
+                if recent_sales > 100:
+                    future_demand = "High demand expected. Consider increasing inventory."
+                elif recent_sales > 50:
+                    future_demand = "Moderate demand expected. Current inventory levels should be sufficient."
+                else:
+                    future_demand = "Lower demand expected. Consider promotional activities."
+
+                # 4. Create Report
+                report = Report(
+                    most_popular_product_id=popular_product.product_id,
+                    most_popular_product_type=popular_product.product_type,
+                    total_quantity=popular_product.total_quantity,
+                    inventory_turnover=round(inventory_turnover, 2),
+                    future_demand=future_demand
+                )
+
+                db.session.add(report)
+                db.session.commit()
+
+                flash('Inventory report generated successfully.', 'success')
+                return redirect(url_for('view_report', report_id=report.id))
+
+            except Exception as e:
+                print(f"Error generating report: {e}")
+                flash('An error occurred while generating the report.', 'danger')
+                return redirect(url_for('admin'))
+
+        # GET request - show form to generate report
         return render_template('generate_report.html')
-
+    
     @app.route('/messi/admin/view_report/<int:report_id>')
     @login_required
     def view_report(report_id):
-        if current_user.role != 'admin':
+        if current_user.uid != 1:  # Ensure only admin can access
             flash('Unauthorized access.', 'danger')
             return redirect(url_for('index'))
 
         report = Report.query.get_or_404(report_id)
-
-        # Fetch the most popular product details
+        
+        # Get details of the most popular product
         popular_product = None
         if report.most_popular_product_type and report.most_popular_product_id:
             try:
-                # Dynamically get the model class based on product_type
-                product_model = globals()[report.most_popular_product_type]
-                popular_product = product_model.query.get(report.most_popular_product_id)
-            except KeyError:
-                popular_product = None
+                model = globals()[report.most_popular_product_type]
+                popular_product = model.query.get(report.most_popular_product_id)
+            except (KeyError, AttributeError):
+                pass
 
-        return render_template('view_report.html', report=report, popular_product=popular_product, total_quantity=report.most_popular_product_id and report.total_quantity or 0)
-
+        return render_template('view_report.html', 
+                            report=report, 
+                            popular_product=popular_product)
 
     @app.route('/men')
     def men():

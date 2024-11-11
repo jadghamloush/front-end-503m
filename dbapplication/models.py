@@ -1,6 +1,6 @@
 from app import db
 from flask_login import UserMixin
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # models.py
 
@@ -24,16 +24,16 @@ class Invoice(db.Model):
 
 
 class Report(db.Model):
-    __tablename__ = 'reports'
-    
     id = db.Column(db.Integer, primary_key=True)
+    date_generated = db.Column(db.DateTime, nullable=False, default=datetime.utcnow())
     most_popular_product_id = db.Column(db.Integer, nullable=False)
     most_popular_product_type = db.Column(db.String, nullable=False)
-    future_demand = db.Column(db.String, nullable=True)
-
-    def __repr__(self):
-        return f"<Report #{self.id} - Most Popular Product ID: {self.most_popular_product_id}, Type: {self.most_popular_product_type}, Future Demand: {self.future_demand}>"
-
+    total_quantity = db.Column(db.Integer, nullable=False)  # Total quantity sold of most popular product
+    inventory_turnover = db.Column(db.Float, nullable=False)  # Ratio of sales to average inventory
+    future_demand = db.Column(db.String, nullable=True)  # Prediction text
+    
+    def _repr_(self):
+        return f"<Report #{self.id} - Date: {self.date_generated}, Most Popular Product ID: {self.most_popular_product_id}>"
         
 
 # models.py

@@ -25,8 +25,8 @@ import os
 def create_token(user_id,app):
     payload = {
         'sub': user_id,
-        'iat': datetime.datetime.utcnow(),
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=15) 
+        'iat': datetime.utcnow(),
+        'exp': datetime.utcnow() + timedelta(minutes=15) 
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
 

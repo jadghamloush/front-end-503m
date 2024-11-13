@@ -7,7 +7,7 @@ from models import (
     OuterwearSubCategory, RecoverySubCategory, Accessories, Swimwear,
     CompressionWear, SpecialtySportswear, ProtectiveGear,
     AccessoriesSubCategory, SwimwearSubCategory, CompressionSubCategory,
-    SpecialtySportswearSubCategory, ProtectiveGearSubCategory, Cart, Invoice, Report
+    SpecialtySportswearSubCategory, ProtectiveGearSubCategory, Cart, Invoice, Report, Promotion
 )
 
 import csv
@@ -38,7 +38,7 @@ def extract_auth_token(authenticated_request):
         return None
 
 
-def decode_token(token,app):
+def decode_token(token, app):
     try:
         payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
         return payload['sub']
@@ -112,9 +112,13 @@ def register_routes(app, db,bcrypt):
         return items
 
     
-    @app.route('/', methods = ['GET', 'POST'])
+    @app.route('/')
     def index():
-        return render_template('index.html')
+        # Fetch active promotions
+        active_promotions = Promotion.query.filter_by(active=True).all()
+        # Optionally, filter promotions based on date
+        active_promotions = [promo for promo in active_promotions if promo.is_active()]
+        return render_template('index.html', promotions=active_promotions)
     
     @app.route('/signup', methods=['GET', 'POST'])
     def signup():
@@ -128,6 +132,109 @@ def register_routes(app, db,bcrypt):
             db.session.add(user)
             db.session.commit()
             return redirect(url_for('login'))
+        
+    @app.route('/product/<product_type>/<int:product_id>')
+    def product_detail(product_type, product_id):
+        model = globals().get(product_type)
+        if not model:
+            flash('Invalid product type.', 'danger')
+            return redirect(url_for('index'))
+        product = model.query.get_or_404(product_id)
+        # Check if there's an active promotion for this product
+        promotion = Promotion.query.filter_by(product_type=product_type, product_id=product_id, active=True).first()
+        if promotion and not promotion.is_active():
+            promotion = None
+
+        if current_user.is_authenticated:
+        # Assuming you have a Cart model related to the user
+            cart_count = Cart.query.filter_by(user_id=current_user.uid).count()
+        else:
+            cart_count = 0
+        return render_template('product_detail.html', product=product, promotion=promotion, cart_count=cart_count)
+
+
+
+
+    @app.route('/messi/admin/promotions')
+    @login_required
+    def manage_promotions():
+        promotions = Promotion.query.order_by(Promotion.start_date.desc()).all()
+        return render_template('admin_promotions.html', promotions=promotions)
+
+    @app.route('/messi/admin/promotions/add', methods=['GET', 'POST'])
+    @login_required
+    def add_promotion():
+        if request.method == 'POST':
+            product_type = request.form.get('product_type')
+            product_id = request.form.get('product_id', type=int)
+            discounted_price = request.form.get('discounted_price', type=float)
+            start_date = request.form.get('start_date')
+            end_date = request.form.get('end_date')
+
+            # Validate input
+            if not product_type or not product_id or not discounted_price:
+                flash('Please provide all required fields.', 'warning')
+                return redirect(url_for('add_promotion'))
+
+            # Fetch the product
+            model = globals().get(product_type)
+            if not model:
+                flash('Invalid product type selected.', 'danger')
+                return redirect(url_for('add_promotion'))
+            product = model.query.get(product_id)
+            if not product:
+                flash('Product not found.', 'danger')
+                return redirect(url_for('add_promotion'))
+
+            # Determine old price
+            if hasattr(product, 'price'):
+                old_price = product.price
+            else:
+                flash('Selected product does not have a price attribute.', 'danger')
+                return redirect(url_for('add_promotion'))
+
+            # Create Promotion
+            promotion = Promotion(
+                product_type=product_type,
+                product_id=product_id,
+                old_price=old_price,
+                discounted_price=discounted_price,
+                start_date=datetime.strptime(start_date, '%Y-%m-%d') if start_date else datetime.utcnow(),
+                end_date=datetime.strptime(end_date, '%Y-%m-%d') if end_date else None,
+                active=True
+            )
+            db.session.add(promotion)
+            db.session.commit()
+            flash('Promotion added successfully.', 'success')
+            return redirect(url_for('manage_promotions'))
+
+        # GET request
+        # Fetch all products to populate the product selection
+        # For simplicity, we'll combine all subcategories into a single list
+        products = []
+        for model in [FootwearSubCategory, ActivewearSubCategory, BottomsSubCategory, OuterwearSubCategory, RecoverySubCategory, AccessoriesSubCategory, SwimwearSubCategory, CompressionSubCategory, SpecialtySportswearSubCategory, ProtectiveGearSubCategory]:
+            for product in model.query.all():
+                products.append({'type': model._name_, 'id': product.id, 'name': product.type})
+
+        return render_template('add_promotion.html', products=products)
+
+    @app.route('/messi/admin/promotions/remove/<int:promotion_id>', methods=['POST'])
+    @login_required
+    def remove_promotion(promotion_id):
+        promotion = Promotion.query.get_or_404(promotion_id)
+        db.session.delete(promotion)
+        db.session.commit()
+        flash('Promotion removed successfully.', 'success')
+        return redirect(url_for('manage_promotions'))
+
+    @app.route('/messi/admin/promotions/deactivate/<int:promotion_id>', methods=['POST'])
+    @login_required
+    def deactivate_promotion(promotion_id):
+        promotion = Promotion.query.get_or_404(promotion_id)
+        promotion.active = False
+        db.session.commit()
+        flash('Promotion deactivated successfully.', 'success')
+        return redirect(url_for('manage_promotions'))
 
 
 
@@ -340,36 +447,24 @@ def register_routes(app, db,bcrypt):
         elif request.method == 'POST':
             try:
                 user_data = request.get_json()
-                
                 if not user_data or 'username' not in user_data or 'password' not in user_data:
                     return jsonify({'error': 'Missing username or password'}), 400
-                    
+
                 username = user_data["username"]
                 password = user_data["password"]
 
                 existing_user = User.query.filter_by(username=username).first()
                 if existing_user is None:
                     return jsonify({'error': 'Invalid credentials'}), 403
-                    
+
                 if not bcrypt.check_password_hash(existing_user.password, password):
                     return jsonify({'error': 'Invalid credentials'}), 403
-                
-                # Create JWT token
-                token = create_token(existing_user.uid,app)
-                
-                # If you want to also maintain a session
-                login_user(existing_user)
-                
-                return jsonify({
-                    "token": token,
-                    "username": existing_user.username
-                }), 200
-                
-            except Exception as e:
-                print(f"Login error: {e}")
-                return jsonify({'error': 'Internal server error'}), 500
 
-    
+                token = create_token(existing_user.uid, app)
+                login_user(existing_user)
+                return jsonify({"token": token}), 200
+            except:
+                return "error"
     
     
     @app.route('/logout')
@@ -864,7 +959,8 @@ def register_routes(app, db,bcrypt):
     @app.route('/men')
     def men():
         from models import Cart  # Local import to avoid circular dependency
-
+        token = extract_auth_token(request)
+        user_id = decode_token(token, app)
         men_items = get_items_for_gender('Men')  # Utilize the existing function
         main_categories = [
             'All',
@@ -931,8 +1027,13 @@ def register_routes(app, db,bcrypt):
 
 
     @app.route("/add_to_cart", methods=["POST"])
+    @login_required
     def add_to_cart():
+        token = extract_auth_token(request)
+        user_id = decode_token(token, app)
+        
         try:
+            # Get data from request JSON instead of token decode
             data = request.get_json()
             print("Received data in /add_to_cart:", data)  # Debugging line
 
@@ -944,7 +1045,7 @@ def register_routes(app, db,bcrypt):
                 return jsonify({'error': 'Product ID and type are required.'}), 400
 
             # Local import to avoid circular dependency
-            from models import Cart
+            from models import Cart, Promotion
 
             # Validate product_type corresponds to a valid model
             product_model = globals().get(product_type)
@@ -959,36 +1060,47 @@ def register_routes(app, db,bcrypt):
             if product.quantity < quantity:
                 return jsonify({'error': 'Requested quantity exceeds available stock.'}), 400
 
+            # Check for active promotion
+            promotion = Promotion.query.filter_by(
+                product_type=product_type,
+                product_id=product_id,
+                active=True
+            ).first()
+
+            # Determine the correct price
+            price_to_use = promotion.discounted_price if promotion and promotion.is_active() else product.price
+
             # Check if item is already in cart
             cart_item = Cart.query.filter_by(user_id=current_user.uid, product_type=product_type, product_id=product_id).first()
             if cart_item:
                 cart_item.quantity += quantity
+                cart_item.price = price_to_use  # Update price in case promotion has changed
             else:
                 new_cart_item = Cart(
                     user_id=current_user.uid,
                     product_type=product_type,
                     product_id=product_id,
-                    quantity=quantity
+                    quantity=quantity,
+                    price=price_to_use,
+                    date_added=datetime.utcnow()
                 )
                 db.session.add(new_cart_item)
 
-            # Optionally, reduce the available stock immediately or upon checkout
-            # product.quantity -= quantity
-
             db.session.commit()
 
-            return jsonify({'message': f'Added {quantity} x {product.type} to cart.'}), 200
+            return jsonify({'success': True, 'message': f'Added {quantity} x {product.type} to cart.'}), 200
 
         except Exception as e:
             print(f"Error adding to cart: {e}")
+            db.session.rollback()
             return jsonify({'error': 'An error occurred while adding the item to the cart.'}), 500
 
-
-
     @app.route("/cart", methods=["GET"])
+    @login_required
     def view_cart():
         from models import Cart  # Local import
-
+        token = extract_auth_token(request)
+        user_id = decode_token(token, app)
         cart_items = Cart.query.filter_by(user_id=current_user.uid).all()
         cart_details = []
         subtotal = 0
@@ -996,18 +1108,34 @@ def register_routes(app, db,bcrypt):
         for item in cart_items:
             product = item.get_product()
             if product:
-                total_price = product.price * item.quantity
+                # Check for active promotion
+                promotion = Promotion.query.filter_by(
+                    product_type=item.product_type,
+                    product_id=item.product_id,
+                    active=True
+                ).first()
+                
+                # Use promotional price if there's an active promotion
+                if promotion and promotion.is_active():
+                    price = promotion.discounted_price
+                else:
+                    price = product.price
+
+                total_price = price * item.quantity
                 subtotal += total_price
+                
                 cart_details.append({
                     'cart_id': item.id,
                     'product_id': item.product_id,
                     'product_type': item.product_type,
                     'name': product.type,
-                    'price': product.price,
+                    'price': price,  # Using the determined price (original or promotional)
+                    'original_price': product.price,  # Optional: if you want to show the original price
                     'size': product.size if hasattr(product, 'size') else 'N/A',
                     'quantity': item.quantity,
                     'total_price': total_price,
-                    'image': f"images/{item.product_type.lower()}/{product.type.replace(' ', '_').lower()}.jpg"
+                    'image': f"images/{item.product_type.lower()}/{product.type.replace(' ', '_').lower()}.jpg",
+                    'has_promotion': bool(promotion and promotion.is_active())
                 })
 
         return render_template('cart.html', cart=cart_details, subtotal=subtotal)
@@ -1015,7 +1143,7 @@ def register_routes(app, db,bcrypt):
 
     @app.route("/cart/update", methods=["POST"])
     def update_cart():
-        from models import Cart  # Local import
+        from models import Cart, Promotion  # Local import
 
         try:
             data = request.get_json()
@@ -1044,14 +1172,43 @@ def register_routes(app, db,bcrypt):
                 return jsonify({'error': 'Requested quantity exceeds available stock.'}), 400
 
             cart_item.quantity = new_quantity
+
+            # Check for active promotion
+            promotion = Promotion.query.filter_by(
+                product_type=cart_item.product_type,
+                product_id=cart_item.product_id,
+                active=True
+            ).first()
+            
+            # Use promotional price if there's an active promotion
+            if promotion and promotion.is_active():
+                price = promotion.discounted_price
+            else:
+                price = product.price
+
             db.session.commit()
 
-            total_price = product.price * cart_item.quantity
+            total_price = price * cart_item.quantity
 
-            # Calculate new subtotal
-            subtotal = db.session.query(func.sum(product_model.price * Cart.quantity)).\
-                join(product_model, (product_model.id == Cart.product_id)).\
-                filter(Cart.user_id == current_user.uid).scalar() or 0
+            # Calculate new subtotal with promotions
+            subtotal = 0
+            cart_items = Cart.query.filter_by(user_id=current_user.uid).all()
+            for item in cart_items:
+                item_product = item.get_product()
+                if item_product:
+                    # Check for promotion for each item
+                    item_promotion = Promotion.query.filter_by(
+                        product_type=item.product_type,
+                        product_id=item.product_id,
+                        active=True
+                    ).first()
+                    
+                    if item_promotion and item_promotion.is_active():
+                        item_price = item_promotion.discounted_price
+                    else:
+                        item_price = item_product.price
+                        
+                    subtotal += item_price * item.quantity
 
             return jsonify({
                 'message': 'Cart updated successfully.',
@@ -1062,7 +1219,6 @@ def register_routes(app, db,bcrypt):
         except Exception as e:
             print(f"Error updating cart: {e}")
             return jsonify({'error': 'An error occurred while updating the cart.'}), 500
-
 
     @app.route("/cart/remove", methods=["POST"])
     def remove_from_cart():

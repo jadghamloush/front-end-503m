@@ -22,6 +22,37 @@ class Invoice(db.Model):
     def __repr__(self):
         return f"<Invoice #{self.invoice_id} - User: {self.user.username}, Product ID: {self.product_id}, Quantity: {self.quantity}, Date: {self.date}, Total Price: {self.total_price}, Status: {self.status}>"
 
+class Promotion(db.Model):
+    _tablename_ = 'promotions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    product_type = db.Column(db.String, nullable=False)
+    product_id = db.Column(db.Integer, nullable=False)
+    old_price = db.Column(db.Float, nullable=False)
+    discounted_price = db.Column(db.Float, nullable=False)
+    start_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    end_date = db.Column(db.DateTime, nullable=True)
+    active = db.Column(db.Boolean, default=True)
+    
+    def _repr_(self):
+        return (f"<Promotion {self.id} - {self.product_type} ID: {self.product_id} "
+                f"Old Price: {self.old_price} -> New Price: {self.discounted_price}>")
+    
+    def is_active(self):
+        """Check if the promotion is currently active."""
+        now = datetime.utcnow()
+        if self.active and (self.end_date is None or self.end_date > now):
+            return True
+        return False
+    
+    def get_product(self):
+        """Retrieve the associated product object."""
+        model = globals().get(self.product_type)
+        if model:
+            return model.query.get(self.product_id)
+        return None
+
+
 
 class Report(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -47,21 +78,22 @@ class Cart(db.Model):
     product_id = db.Column(db.Integer, nullable=False)   # ID corresponding to the product in its subcategory
     quantity = db.Column(db.Integer, nullable=False, default=1)
     date_added = db.Column(db.DateTime, default=datetime.utcnow)
+    price = db.Column(db.Float, nullable=False)  # Added price field
     
     # Relationship to User
     user = db.relationship('User', backref=db.backref('cart_items', lazy=True))
     
     def __repr__(self):
-        return f"<CartItem UserID: {self.user_id}, ProductType: {self.product_type}, ProductID: {self.product_id}, Quantity: {self.quantity}>"
+        return f"<CartItem UserID: {self.user_id}, ProductType: {self.product_type}, ProductID: {self.product_id}, Quantity: {self.quantity}, Price: {self.price}>"
     
     def get_product(self):
-        """
-        Retrieves the actual product object based on product_type and product_id.
-        """
-        model = globals().get(self.product_type)
-        if model:
-            return model.query.get(self.product_id)
-        return None
+        try:
+            model = globals().get(self.product_type)
+            if model:
+                return model.query.get(self.product_id)
+            return None
+        except:
+            return None
 
 
 class User(db.Model,UserMixin):

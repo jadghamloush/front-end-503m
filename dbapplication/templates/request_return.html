@@ -1,0 +1,166 @@
+<!-- templates/request_return.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Request Return</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Request Return</h1>
+        <div class="order-details">
+            <h2>Order Details</h2>
+            <p>Order #: {{ invoice.invoice_id }}</p>
+            <p>Product: {{ invoice.product_type }}</p>
+            <p>Quantity Purchased: {{ invoice.quantity }}</p>
+            <p>Price: ${{ "%.2f"|format(invoice.price) }}</p>
+        </div>
+        
+        <form method="POST" class="return-form">
+            <div class="form-group">
+                <label for="quantity">Return Quantity:</label>
+                <input type="number" name="quantity" id="quantity" min="1" max="{{ invoice.quantity }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="reason">Reason for Return:</label>
+                <select name="reason" id="reason" required>
+                    <option value="">Select a reason</option>
+                    <option value="Wrong Size">Wrong Size</option>
+                    <option value="Defective">Defective Product</option>
+                    <option value="Not as Described">Not as Described</option>
+                    <option value="Changed Mind">Changed Mind</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Submit Return Request</button>
+            <a href="{{ url_for('view_orders') }}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</body>
+</html>
+
+<!-- templates/view_returns.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Returns</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Returns Management</h1>
+        
+        {% if returns %}
+        <table class="returns-table">
+            <thead>
+                <tr>
+                    <th>Return ID</th>
+                    <th>Order ID</th>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Date Requested</th>
+                    {% if current_user.uid == 1 %}
+                    <th>Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for return in returns %}
+                <tr>
+                    <td>{{ return.id }}</td>
+                    <td>{{ return.invoice_id }}</td>
+                    <td>{{ return.product_type }}</td>
+                    <td>{{ return.quantity }}</td>
+                    <td>{{ return.reason }}</td>
+                    <td>{{ return.status }}</td>
+                    <td>{{ return.date_requested.strftime('%Y-%m-%d') }}</td>
+                    {% if current_user.uid == 1 and return.status == 'Pending' %}
+                    <td>
+                        <a href="{{ url_for('process_return', return_id=return.id) }}" class="btn btn-primary">Process</a>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No returns found.</p>
+        {% endif %}
+        
+        <div class="actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
+        </div>
+    </div>
+</body>
+</html>
+
+<!-- templates/process_return.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Process Return</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Process Return Request</h1>
+        
+        <div class="return-details">
+            <h2>Return Details</h2>
+            <p>Return ID: {{ return_request.id }}</p>
+            <p>Order ID: {{ return_request.invoice_id }}</p>
+            <p>Product: {{ return_request.product_type }}</p>
+            <p>Quantity: {{ return_request.quantity }}</p>
+            <p>Reason: {{ return_request.reason }}</p>
+            <p>Date Requested: {{ return_request.date_requested.strftime('%Y-%m-%d') }}</p>
+        </div>
+        
+        <form method="POST" class="process-form">
+            <div class="form-group">
+                <label for="action">Action:</label>
+                <select name="action" id="action" required>
+                    <option value="">Select Action</option>
+                    <option value="approve">Approve</option>
+                    <option value="reject">Reject</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="action-taken-group">
+                <label for="action_taken">Resolution:</label>
+                <select name="action_taken" id="action_taken">
+                    <option value="">Select Resolution</option>
+                    <option value="Refund">Issue Refund</option>
+                    <option value="Replacement">Send Replacement</option>
+                    <option value="Store Credit">Issue Store Credit</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="notes">Notes:</label>
+                <textarea name="notes" id="notes" rows="4"></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Submit</button>
+            <a href="{{ url_for('view_returns') }}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+    
+    <script>
+        // Show/hide resolution options based on action selection
+        document.getElementById('action').addEventListener('change', function() {
+            const actionTakenGroup = document.getElementById('action-taken-group');
+            if (this.value === 'approve') {
+                actionTakenGroup.style.display = 'block';
+                document.getElementById('action_taken').required = true;
+            } else {
+                actionTakenGroup.style.display = 'none';
+                document.getElementById('action_taken').required = false;
+            }
+        });
+    </script>
+</body>
+</html>

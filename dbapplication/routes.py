@@ -7,7 +7,7 @@ from models import (
     OuterwearSubCategory, RecoverySubCategory, Accessories, Swimwear,
     CompressionWear, SpecialtySportswear, ProtectiveGear,
     AccessoriesSubCategory, SwimwearSubCategory, CompressionSubCategory,
-    SpecialtySportswearSubCategory, ProtectiveGearSubCategory, Cart, Invoice, Report, Promotion
+    SpecialtySportswearSubCategory, ProtectiveGearSubCategory, Cart, Invoice, Report, Promotion, ReturnRequest
 )
 
 import csv
@@ -52,6 +52,42 @@ def decode_token(token, app):
 def register_routes(app, db,bcrypt):
 
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'csv'}
+
+    # routes.py or a separate helper module
+
+    def get_replacement_products(product_type, price):
+        """
+        Fetch products from the same subcategory that have the same price.
+        
+        Args:
+            product_type (str): The subcategory type of the product.
+            price (float): The price of the original product.
+        
+        Returns:
+            list: A list of product objects that match the criteria.
+        """
+        model_mapping = {
+            'FootwearSubCategory': FootwearSubCategory,
+            'ActivewearSubCategory': ActivewearSubCategory,
+            'BottomsSubCategory': BottomsSubCategory,
+            'OuterwearSubCategory': OuterwearSubCategory,
+            'RecoverySubCategory': RecoverySubCategory,
+            'AccessoriesSubCategory': AccessoriesSubCategory,
+            'SwimwearSubCategory': SwimwearSubCategory,
+            'CompressionSubCategory': CompressionSubCategory,
+            'SpecialtySportswearSubCategory': SpecialtySportswearSubCategory,
+            'ProtectiveGearSubCategory': ProtectiveGearSubCategory
+        }
+        
+        model = model_mapping.get(product_type)
+        if not model:
+            return []
+        
+        # Fetch products with the same price and available quantity
+        replacement_products = model.query.filter_by(price=price).filter(model.quantity > 0).all()
+        
+        return replacement_products
+
 
 
     def validate_image(stream):
@@ -119,6 +155,255 @@ def register_routes(app, db,bcrypt):
         # Optionally, filter promotions based on date
         active_promotions = [promo for promo in active_promotions if promo.is_active()]
         return render_template('index.html', promotions=active_promotions)
+
+
+
+    @app.route("/my_returns", methods=["GET"])
+    @login_required
+    def my_returns():
+        return_requests = ReturnRequest.query.filter_by(user_id=current_user.uid).order_by(ReturnRequest.request_date.desc()).all()
+        return render_template("my_returns.html", return_requests=return_requests)
+
+
+
+
+
+    @app.route("/my_orders", methods=["GET"])
+    @login_required
+    def view_orders():
+        """
+        Route to display the current user's orders (invoices) along with any associated return requests.
+        """
+        # Fetch all invoices associated with the current user, ordered by date descending
+        invoices = Invoice.query.filter_by(user_id=current_user.uid).order_by(Invoice.date.desc()).all()
+        
+        # For each invoice, check if there's an associated return request
+        invoices_with_returns = []
+        for invoice in invoices:
+            return_request = ReturnRequest.query.filter_by(invoice_id=invoice.invoice_id).first()
+            invoices_with_returns.append({
+                'invoice': invoice,
+                'return_request': return_request
+            })
+        
+        return render_template("my_orders.html", invoices_with_returns=invoices_with_returns)
+
+
+
+
+
+    @app.route("/request_return/<int:invoice_id>", methods=["GET", "POST"])
+    @login_required
+    def request_return(invoice_id):
+        invoice = Invoice.query.get_or_404(invoice_id)
+        
+        # Ensure the invoice belongs to the current user
+        if invoice.user_id != current_user.uid:
+            flash("You are not authorized to request a return for this invoice.", "danger")
+            return redirect(url_for("view_orders"))
+        
+        # Check if there's already a return request
+        existing_return = ReturnRequest.query.filter_by(invoice_id=invoice.invoice_id).first()
+        if existing_return:
+            flash("A return request for this invoice already exists.", "info")
+            return redirect(url_for("view_orders"))
+        
+        if request.method == "POST":
+            product_id = invoice.product_id
+            product_type = invoice.product_type
+            reason = request.form.get("reason")
+            refund_or_replace = request.form.get("action")  # 'refund' or 'replace'
+            replacement_product_id = request.form.get("replacement_product_id") if refund_or_replace == "replace" else None
+            quantity = request.form.get("quantity", type=int)
+            
+            # Input validation
+            if not reason or refund_or_replace not in ["refund", "replace"]:
+                flash("Invalid input. Please provide a reason and select an action.", "danger")
+                return redirect(url_for("request_return", invoice_id=invoice_id))
+            
+            if quantity < 1 or quantity > invoice.quantity:
+                flash(f"Invalid quantity. You can return between 1 and {invoice.quantity} items.", "danger")
+                return redirect(url_for("request_return", invoice_id=invoice_id))
+            
+            # If replacing, ensure the replacement product is valid and available
+            if refund_or_replace == "replace":
+                replacement_product = None
+                # Determine the model based on product_type
+                model_mapping = {
+                    'FootwearSubCategory': FootwearSubCategory,
+                    'ActivewearSubCategory': ActivewearSubCategory,
+                    'BottomsSubCategory': BottomsSubCategory,
+                    'OuterwearSubCategory': OuterwearSubCategory,
+                    'RecoverySubCategory': RecoverySubCategory,
+                    'AccessoriesSubCategory': AccessoriesSubCategory,
+                    'SwimwearSubCategory': SwimwearSubCategory,
+                    'CompressionSubCategory': CompressionSubCategory,
+                    'SpecialtySportswearSubCategory': SpecialtySportswearSubCategory,
+                    'ProtectiveGearSubCategory': ProtectiveGearSubCategory
+                }
+                model = model_mapping.get(product_type)
+                if model:
+                    replacement_product = model.query.get(replacement_product_id)
+                    if not replacement_product or replacement_product.quantity < quantity:
+                        flash("Selected replacement product is not available or insufficient stock.", "danger")
+                        return redirect(url_for("request_return", invoice_id=invoice_id))
+                else:
+                    flash("Invalid product type.", "danger")
+                    return redirect(url_for("request_return", invoice_id=invoice_id))
+            
+            # Calculate refund amount (assuming full refund; modify as needed)
+            refund_amount = invoice.total_price if refund_or_replace == "refund" else None
+            
+            # Create a new ReturnRequest
+            new_return = ReturnRequest(
+                invoice_id=invoice.invoice_id,
+                user_id=current_user.uid,
+                product_id=product_id,
+                product_type=product_type,
+                reason=reason,
+                refund_amount=refund_amount,
+                replacement_product_id=replacement_product_id,
+                quantity=quantity  # **Set the quantity**
+            )
+            
+            db.session.add(new_return)
+            db.session.commit()
+            
+            flash("Your return request has been submitted successfully.", "success")
+            return redirect(url_for("view_orders"))
+        
+        # For GET request, fetch available replacement products with the same price
+        model_mapping = {
+            'FootwearSubCategory': FootwearSubCategory,
+            'ActivewearSubCategory': ActivewearSubCategory,
+            'BottomsSubCategory': BottomsSubCategory,
+            'OuterwearSubCategory': OuterwearSubCategory,
+            'RecoverySubCategory': RecoverySubCategory,
+            'AccessoriesSubCategory': AccessoriesSubCategory,
+            'SwimwearSubCategory': SwimwearSubCategory,
+            'CompressionSubCategory': CompressionSubCategory,
+            'SpecialtySportswearSubCategory': SpecialtySportswearSubCategory,
+            'ProtectiveGearSubCategory': ProtectiveGearSubCategory
+        }
+        model = model_mapping.get(invoice.product_type)
+        available_replacements = []
+        if model:
+            # Fetch products of the same subcategory with the same price and available stock
+            available_replacements = model.query.filter_by(price=invoice.price).filter(model.quantity >= 1).all()
+        
+        return render_template("request_return.html", invoice=invoice, available_replacements=available_replacements)
+
+
+
+    @app.route("/messi/admin/returns", methods=["GET"])
+    @login_required
+    def view_returns():
+        if current_user.uid != 1:
+            flash("Access denied. Admins only.", "danger")
+            return redirect(url_for("index"))
+        
+        return_requests = ReturnRequest.query.order_by(ReturnRequest.request_date.desc()).all()
+        return render_template("admin_returns.html", return_requests=return_requests)
+
+
+
+
+
+    @app.route("/messi/admin/process_return/<int:return_id>", methods=["POST"])
+    @login_required
+    def process_return(return_id):
+        # Ensure the user is an admin
+        if current_user.uid != 1:  # Assuming uid=1 is the admin
+            flash("Access denied. Admins only.", "danger")
+            return redirect(url_for("index"))
+        
+        return_request = ReturnRequest.query.get_or_404(return_id)
+        
+        action = request.form.get("action")  # 'approve' or 'deny'
+        
+        if action not in ["approve", "deny"]:
+            flash("Invalid action.", "danger")
+            return redirect(url_for("view_returns"))
+        
+        if action == "approve":
+            # Update the return request status
+            return_request.status = "Approved"
+            
+            # Fetch the associated invoice
+            invoice = return_request.invoice
+            
+            # Fetch the product being returned
+            product = return_request.get_product()
+            if not product:
+                flash("Associated product not found.", "danger")
+                return redirect(url_for("view_returns"))
+            
+            # Restore the product's quantity
+            product.quantity += return_request.quantity  # **Restoring Quantity**
+            
+            # If replacement is requested
+            if return_request.replacement_product_id:
+                # Fetch the replacement product
+                replacement_product = None
+                model_mapping = {
+                    'FootwearSubCategory': FootwearSubCategory,
+                    'ActivewearSubCategory': ActivewearSubCategory,
+                    'BottomsSubCategory': BottomsSubCategory,
+                    'OuterwearSubCategory': OuterwearSubCategory,
+                    'RecoverySubCategory': RecoverySubCategory,
+                    'AccessoriesSubCategory': AccessoriesSubCategory,
+                    'SwimwearSubCategory': SwimwearSubCategory,
+                    'CompressionSubCategory': CompressionSubCategory,
+                    'SpecialtySportswearSubCategory': SpecialtySportswearSubCategory,
+                    'ProtectiveGearSubCategory': ProtectiveGearSubCategory
+                }
+                model = model_mapping.get(return_request.product_type)
+                if model:
+                    replacement_product = model.query.get(return_request.replacement_product_id)
+                    if replacement_product and replacement_product.quantity > 0:
+                        # Deduct stock for replacement product
+                        replacement_product.quantity -= return_request.quantity
+                        # Optionally, update the invoice status to 'Replaced'
+                        invoice.status = "Replaced"
+                        flash(f"Replacement product '{replacement_product.type}' issued successfully for Return ID {return_id}.", "success")
+                    else:
+                        flash("Replacement product is no longer available.", "danger")
+                        # Optionally, set status back to 'Pending' or 'Denied'
+                        return_request.status = "Denied"
+                else:
+                    flash("Invalid product type for replacement.", "danger")
+                    return_request.status = "Denied"
+            
+            elif return_request.refund_amount:
+                # Process refund logic (e.g., integrate with payment gateway)
+                # For demonstration, we'll assume refund is successful
+                invoice.status = "Refunded"
+                flash(f"Refund of ${return_request.refund_amount:.2f} issued successfully for Return ID {return_id}.", "success")
+            
+            # Mark the return request as completed
+            return_request.status = "Completed"
+            
+            db.session.commit()
+            
+            # Optionally, send notification to the user about the approval
+            # send_email(...)  # Implement email notifications as needed
+        
+        elif action == "deny":
+            # Update the return request status
+            return_request.status = "Denied"
+            db.session.commit()
+            flash(f"Return Request ID {return_id} has been denied.", "info")
+            
+            # Optionally, send notification to the user about the denial
+            # send_email(...)  # Implement email notifications as needed
+        
+        return redirect(url_for("view_returns"))
+
+
+
+
+
+
     
     @app.route('/signup', methods=['GET', 'POST'])
     def signup():
@@ -516,6 +801,9 @@ def register_routes(app, db,bcrypt):
         subcategories_data = {
             # ... (existing code)
         }
+        
+        return_requests = ReturnRequest.query.order_by(ReturnRequest.request_date.desc()).all()
+
 
         return render_template('admin.html',
             users=users,
@@ -540,7 +828,8 @@ def register_routes(app, db,bcrypt):
             specialty_sportswear_subcategories=specialty_sportswear_subcategories,
             protective_gear_subcategories=protective_gear_subcategories,
             invoices=invoices,
-            subcategories_data=subcategories_data
+            subcategories_data=subcategories_data,
+            return_requests=return_requests
         )
 
 

@@ -139,6 +139,92 @@
       >
         Bulk Upload
       </button>
+      <button id="toggle-returns" class="btn btn-info">Show Returns</button>
+
+      <!-- Returns Section -->
+      <div id="returns-section" style="display: none">
+        <h2>Return Requests</h2>
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Return ID</th>
+              <th>Invoice ID</th>
+              <th>User</th>
+              <th>Product Type</th>
+              <th>Product ID</th>
+              <th>Reason</th>
+              <th>Request Date</th>
+              <th>Status</th>
+              <th>Refund Amount</th>
+              <th>Replacement Product</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for return_req in return_requests %}
+            <tr>
+              <td>{{ return_req.id }}</td>
+              <td>{{ return_req.invoice_id }}</td>
+              <td>{{ return_req.user.username }}</td>
+              <td>{{ return_req.product_type }}</td>
+              <td>{{ return_req.product_id }}</td>
+              <td>{{ return_req.reason }}</td>
+              <td>
+                {{ return_req.request_date.strftime('%Y-%m-%d %H:%M:%S') }}
+              </td>
+              <td>{{ return_req.status }}</td>
+              <td>
+                {% if return_req.refund_amount %} ${{
+                "{:.2f}".format(return_req.refund_amount) }} {% else %} N/A {%
+                endif %}
+              </td>
+              <td>
+                {% if return_req.replacement_product_id %} {% set
+                replacement_product = return_req.get_product() %} {% if
+                replacement_product %} {{ replacement_product.type }} {% else %}
+                N/A {% endif %} {% else %} N/A {% endif %}
+              </td>
+              <td>
+                {% if return_req.status == "Pending" %}
+                <form
+                  method="POST"
+                  action="{{ url_for('process_return', return_id=return_req.id) }}"
+                  style="display: inline"
+                >
+                  <input type="hidden" name="action" value="approve" />
+                  <button
+                    type="submit"
+                    class="btn btn-sm btn-success action-btn"
+                    onclick="return confirm('Approve this return request?');"
+                  >
+                    Approve
+                  </button>
+                </form>
+                <form
+                  method="POST"
+                  action="{{ url_for('process_return', return_id=return_req.id) }}"
+                  style="display: inline"
+                >
+                  <input type="hidden" name="action" value="deny" />
+                  <button
+                    type="submit"
+                    class="btn btn-sm btn-danger action-btn"
+                    onclick="return confirm('Deny this return request?');"
+                  >
+                    Deny
+                  </button>
+                </form>
+                {% else %} N/A {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        {% if not return_requests %}
+        <p>No return requests available.</p>
+        {% endif %}
+      </div>
 
       <!-- Container for All Tables -->
       <div id="stock-tables">
@@ -1910,279 +1996,291 @@
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
       <script>
-        // Toggle Stock Tables
-        document
-          .getElementById("toggle-stock")
-          .addEventListener("click", function () {
-            var tablesDiv = document.getElementById("stock-tables");
-            var button = document.getElementById("toggle-stock");
-            if (
-              tablesDiv.style.display === "none" ||
-              tablesDiv.style.display === ""
-            ) {
-              tablesDiv.style.display = "block";
-              button.textContent = "Hide Stock";
-            } else {
-              tablesDiv.style.display = "none";
-              button.textContent = "Show Stock";
-            }
-          });
-
-        // Toggle Promotions Section
-        document
-          .getElementById("toggle-promotions")
-          .addEventListener("click", function () {
-            var promotionsSection = document.getElementById("promotions-section");
-            var button = document.getElementById("toggle-promotions");
-            if (
-              promotionsSection.style.display === "none" ||
-              promotionsSection.style.display === ""
-            ) {
-              promotionsSection.style.display = "block";
-              button.textContent = "Hide Promotions";
-            } else {
-              promotionsSection.style.display = "none";
-              button.textContent = "Show Promotions";
-            }
-          });
-
-        // Toggle Invoices Section
-        document
-          .getElementById("toggle-invoices")
-          .addEventListener("click", function () {
-            var invoicesSection = document.getElementById("invoices-section");
-            var button = document.getElementById("toggle-invoices");
-            if (
-              invoicesSection.style.display === "none" ||
-              invoicesSection.style.display === ""
-            ) {
-              invoicesSection.style.display = "block";
-              button.textContent = "Hide Invoices";
-            } else {
-              invoicesSection.style.display = "none";
-              button.textContent = "Show Invoices";
-            }
-          });
-
-        // Initialize Bootstrap Modals
-        var editPriceModal = new bootstrap.Modal(document.getElementById('editPriceModal'), {});
-        var addPromotionModal = new bootstrap.Modal(document.getElementById('addPromotionModal'), {});
-
-        // Handle Edit Button Clicks
-        var editButtons = document.querySelectorAll('.edit-btn');
-
-        editButtons.forEach(function(button) {
-          button.addEventListener('click', function() {
-            var productType = this.getAttribute('data-product-type');
-            var itemId = this.getAttribute('data-item-id');
-            var price = this.getAttribute('data-price');
-
-            // Set modal fields
-            document.getElementById('modal-product-type').value = productType;
-            document.getElementById('modal-item-id').value = itemId;
-            document.getElementById('current-price').value = '$' + parseFloat(price).toFixed(2);
-            document.getElementById('new-price').value = parseFloat(price).toFixed(2);
-
-            // Reset the image input
-            document.getElementById('new-image').value = '';
-
-            // Show modal
-            editPriceModal.show();
-          });
-        });
-
-        // Add Promotion Modal Functionality
-        document.getElementById('promo-product-type').addEventListener('change', function() {
-          var selectedType = this.value;
-          var productIdSelect = document.getElementById('promo-product-id');
-          productIdSelect.innerHTML = '<option value="" selected disabled>Select Product</option>';
-
-          if (selectedType) {
-            // Define subcategories data
-            var subcategoriesData = {
-              "FootwearSubCategory": [
-                {% for sub in footwear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "ActivewearSubCategory": [
-                {% for sub in activewear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "BottomsSubCategory": [
-                {% for sub in bottoms_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "OuterwearSubCategory": [
-                {% for sub in outerwear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "RecoverySubCategory": [
-                {% for sub in recovery_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "AccessoriesSubCategory": [
-                {% for sub in accessories_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "SwimwearSubCategory": [
-                {% for sub in swimwear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "CompressionSubCategory": [
-                {% for sub in compression_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "SpecialtySportswearSubCategory": [
-                {% for sub in specialty_sportswear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "ProtectiveGearSubCategory": [
-                {% for sub in protective_gear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ]
-            };
-
-            // Populate products based on selectedType
-            var products = subcategoriesData[selectedType];
-            if (products) {
-              products.forEach(function(product) {
-                var option = document.createElement('option');
-                option.value = product.id;
-                option.text = product.type + ' (ID: ' + product.id + ')';
-                productIdSelect.appendChild(option);
+            // Toggle Stock Tables
+            document
+              .getElementById("toggle-stock")
+              .addEventListener("click", function () {
+                var tablesDiv = document.getElementById("stock-tables");
+                var button = document.getElementById("toggle-stock");
+                if (
+                  tablesDiv.style.display === "none" ||
+                  tablesDiv.style.display === ""
+                ) {
+                  tablesDiv.style.display = "block";
+                  button.textContent = "Hide Stock";
+                } else {
+                  tablesDiv.style.display = "none";
+                  button.textContent = "Show Stock";
+                }
               });
-            }
-          }
-        });
 
-        // Add Product Modal Functionality
-        document.getElementById('main-category').addEventListener('change', function() {
-          var selectedCategory = this.value;
-          var subCategorySelect = document.getElementById('sub-category');
-          subCategorySelect.innerHTML = '<option value="" selected disabled>Select Subcategory</option>';
-
-          if (selectedCategory) {
-            // Define subcategories data
-            var subcategoriesData = {
-              "footwear": [
-                {% for sub in footwear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "activewear_tops": [
-                {% for sub in activewear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "bottoms": [
-                {% for sub in bottoms_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "outerwear": [
-                {% for sub in outerwear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "recovery_and_wellness": [
-                {% for sub in recovery_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "accessories": [
-                {% for sub in accessories_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "swimwear": [
-                {% for sub in swimwear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "compression_wear": [
-                {% for sub in compression_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "specialty_sportswear": [
-                {% for sub in specialty_sportswear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ],
-              "protective_gear": [
-                {% for sub in protective_gear_subcategories %}
-                  {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
-                {% endfor %}
-              ]
-            };
-
-            // Populate subcategories
-            var subcats = subcategoriesData[selectedCategory];
-            if (subcats) {
-              subcats.forEach(function(subcat) {
-                var option = document.createElement('option');
-                option.value = subcat.id;
-                option.text = subcat.type;
-                subCategorySelect.appendChild(option);
+            // Toggle Promotions Section
+            document
+              .getElementById("toggle-promotions")
+              .addEventListener("click", function () {
+                var promotionsSection = document.getElementById("promotions-section");
+                var button = document.getElementById("toggle-promotions");
+                if (
+                  promotionsSection.style.display === "none" ||
+                  promotionsSection.style.display === ""
+                ) {
+                  promotionsSection.style.display = "block";
+                  button.textContent = "Hide Promotions";
+                } else {
+                  promotionsSection.style.display = "none";
+                  button.textContent = "Show Promotions";
+                }
               });
+
+            // Toggle Invoices Section
+            document
+              .getElementById("toggle-invoices")
+              .addEventListener("click", function () {
+                var invoicesSection = document.getElementById("invoices-section");
+                var button = document.getElementById("toggle-invoices");
+                if (
+                  invoicesSection.style.display === "none" ||
+                  invoicesSection.style.display === ""
+                ) {
+                  invoicesSection.style.display = "block";
+                  button.textContent = "Hide Invoices";
+                } else {
+                  invoicesSection.style.display = "none";
+                  button.textContent = "Show Invoices";
+                }
+              });
+
+            // Initialize Bootstrap Modals
+            var editPriceModal = new bootstrap.Modal(document.getElementById('editPriceModal'), {});
+            var addPromotionModal = new bootstrap.Modal(document.getElementById('addPromotionModal'), {});
+
+            // Handle Edit Button Clicks
+            var editButtons = document.querySelectorAll('.edit-btn');
+
+            editButtons.forEach(function(button) {
+              button.addEventListener('click', function() {
+                var productType = this.getAttribute('data-product-type');
+                var itemId = this.getAttribute('data-item-id');
+                var price = this.getAttribute('data-price');
+
+                // Set modal fields
+                document.getElementById('modal-product-type').value = productType;
+                document.getElementById('modal-item-id').value = itemId;
+                document.getElementById('current-price').value = '$' + parseFloat(price).toFixed(2);
+                document.getElementById('new-price').value = parseFloat(price).toFixed(2);
+
+                // Reset the image input
+                document.getElementById('new-image').value = '';
+
+                // Show modal
+                editPriceModal.show();
+              });
+            });
+
+            // Add Promotion Modal Functionality
+            document.getElementById('promo-product-type').addEventListener('change', function() {
+              var selectedType = this.value;
+              var productIdSelect = document.getElementById('promo-product-id');
+              productIdSelect.innerHTML = '<option value="" selected disabled>Select Product</option>';
+
+              if (selectedType) {
+                // Define subcategories data
+                var subcategoriesData = {
+                  "FootwearSubCategory": [
+                    {% for sub in footwear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "ActivewearSubCategory": [
+                    {% for sub in activewear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "BottomsSubCategory": [
+                    {% for sub in bottoms_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "OuterwearSubCategory": [
+                    {% for sub in outerwear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "RecoverySubCategory": [
+                    {% for sub in recovery_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "AccessoriesSubCategory": [
+                    {% for sub in accessories_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "SwimwearSubCategory": [
+                    {% for sub in swimwear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "CompressionSubCategory": [
+                    {% for sub in compression_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "SpecialtySportswearSubCategory": [
+                    {% for sub in specialty_sportswear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "ProtectiveGearSubCategory": [
+                    {% for sub in protective_gear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ]
+                };
+
+                // Populate products based on selectedType
+                var products = subcategoriesData[selectedType];
+                if (products) {
+                  products.forEach(function(product) {
+                    var option = document.createElement('option');
+                    option.value = product.id;
+                    option.text = product.type + ' (ID: ' + product.id + ')';
+                    productIdSelect.appendChild(option);
+                  });
+                }
+              }
+            });
+
+            // Add Product Modal Functionality
+            document.getElementById('main-category').addEventListener('change', function() {
+              var selectedCategory = this.value;
+              var subCategorySelect = document.getElementById('sub-category');
+              subCategorySelect.innerHTML = '<option value="" selected disabled>Select Subcategory</option>';
+
+              if (selectedCategory) {
+                // Define subcategories data
+                var subcategoriesData = {
+                  "footwear": [
+                    {% for sub in footwear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "activewear_tops": [
+                    {% for sub in activewear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "bottoms": [
+                    {% for sub in bottoms_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "outerwear": [
+                    {% for sub in outerwear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "recovery_and_wellness": [
+                    {% for sub in recovery_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "accessories": [
+                    {% for sub in accessories_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "swimwear": [
+                    {% for sub in swimwear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "compression_wear": [
+                    {% for sub in compression_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "specialty_sportswear": [
+                    {% for sub in specialty_sportswear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ],
+                  "protective_gear": [
+                    {% for sub in protective_gear_subcategories %}
+                      {"id": {{ sub.id }}, "type": "{{ sub.type | escape }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ]
+                };
+
+                // Populate subcategories
+                var subcats = subcategoriesData[selectedCategory];
+                if (subcats) {
+                  subcats.forEach(function(subcat) {
+                    var option = document.createElement('option');
+                    option.value = subcat.id;
+                    option.text = subcat.type;
+                    subCategorySelect.appendChild(option);
+                  });
+                }
+              }
+            });
+
+            // Form Validation Functions (Optional)
+            function validateBulkUploadForm() {
+              var fileInput = document.getElementById('bulk-csv');
+              var filePath = fileInput.value;
+              var allowedExtensions = /(\.csv)$/i;
+              if (!allowedExtensions.exec(filePath)) {
+                alert('Please upload a CSV file.');
+                fileInput.value = '';
+                return false;
+              }
+              return true;
             }
-          }
+
+            function validateAddPromotionForm() {
+              var discountedPrice = parseFloat(document.getElementById('discounted_price').value);
+              if (discountedPrice <= 0) {
+                alert('Discounted price must be greater than zero.');
+                return false;
+              }
+              return true;
+            }
+
+            function validateAddProductForm() {
+              var price = parseFloat(document.querySelector('input[name="price"]').value);
+              var quantity = parseInt(document.querySelector('input[name="quantity"]').value, 10);
+              if (price <= 0) {
+                alert('Price must be greater than zero.');
+                return false;
+              }
+              if (quantity < 0) {
+                alert('Quantity cannot be negative.');
+                return false;
+              }
+              return true;
+            }
+
+            function validateEditItemForm() {
+              var newPrice = parseFloat(document.getElementById('new-price').value);
+              if (newPrice <= 0) {
+                alert('New price must be greater than zero.');
+                return false;
+              }
+              return true;
+            }
+
+            document.getElementById("toggle-returns").addEventListener("click", function () {
+            var returnsSection = document.getElementById("returns-section");
+            var button = document.getElementById("toggle-returns");
+            if (returnsSection.style.display === "none" || returnsSection.style.display === "") {
+                returnsSection.style.display = "block";
+                button.textContent = "Hide Returns";
+            } else {
+                returnsSection.style.display = "none";
+                button.textContent = "Show Returns";
+            }
         });
-
-        // Form Validation Functions (Optional)
-        function validateBulkUploadForm() {
-          var fileInput = document.getElementById('bulk-csv');
-          var filePath = fileInput.value;
-          var allowedExtensions = /(\.csv)$/i;
-          if (!allowedExtensions.exec(filePath)) {
-            alert('Please upload a CSV file.');
-            fileInput.value = '';
-            return false;
-          }
-          return true;
-        }
-
-        function validateAddPromotionForm() {
-          var discountedPrice = parseFloat(document.getElementById('discounted_price').value);
-          if (discountedPrice <= 0) {
-            alert('Discounted price must be greater than zero.');
-            return false;
-          }
-          return true;
-        }
-
-        function validateAddProductForm() {
-          var price = parseFloat(document.querySelector('input[name="price"]').value);
-          var quantity = parseInt(document.querySelector('input[name="quantity"]').value, 10);
-          if (price <= 0) {
-            alert('Price must be greater than zero.');
-            return false;
-          }
-          if (quantity < 0) {
-            alert('Quantity cannot be negative.');
-            return false;
-          }
-          return true;
-        }
-
-        function validateEditItemForm() {
-          var newPrice = parseFloat(document.getElementById('new-price').value);
-          if (newPrice <= 0) {
-            alert('New price must be greater than zero.');
-            return false;
-          }
-          return true;
-        }
       </script>
     </div>
   </body>

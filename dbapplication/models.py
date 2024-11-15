@@ -54,6 +54,63 @@ class Promotion(db.Model):
 
 
 
+
+# models.py
+
+from app import db
+from flask_login import UserMixin
+from datetime import datetime, timedelta
+
+# Existing models...
+
+class ReturnRequest(db.Model):
+    __tablename__ = 'return_requests'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey('invoices.invoice_id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.uid'), nullable=False)
+    product_id = db.Column(db.Integer, nullable=False)
+    product_type = db.Column(db.String, nullable=False)
+    reason = db.Column(db.String, nullable=False)
+    request_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    status = db.Column(db.String, nullable=False, default='Pending')  # Possible statuses: Pending, Approved, Denied, Completed
+    refund_amount = db.Column(db.Float, nullable=True)
+    replacement_product_id = db.Column(db.Integer, nullable=True)
+    quantity = db.Column(db.Integer, nullable=False, default=1)  # **New Field**
+
+    
+    
+    user = db.relationship('User', backref='return_requests')
+    invoice = db.relationship('Invoice', backref='return_requests')
+    
+    def __repr__(self):
+        return f"<ReturnRequest #{self.id} - User ID: {self.user_id}, Invoice ID: {self.invoice_id}, Status: {self.status}>"
+
+
+    def get_product(self):
+        """
+        Retrieve the product object associated with this return request based on product_type and product_id.
+        """
+        model_mapping = {
+            'FootwearSubCategory': FootwearSubCategory,
+            'ActivewearSubCategory': ActivewearSubCategory,
+            'BottomsSubCategory': BottomsSubCategory,
+            'OuterwearSubCategory': OuterwearSubCategory,
+            'RecoverySubCategory': RecoverySubCategory,
+            'AccessoriesSubCategory': AccessoriesSubCategory,
+            'SwimwearSubCategory': SwimwearSubCategory,
+            'CompressionSubCategory': CompressionSubCategory,
+            'SpecialtySportswearSubCategory': SpecialtySportswearSubCategory,
+            'ProtectiveGearSubCategory': ProtectiveGearSubCategory
+        }
+        model = model_mapping.get(self.product_type)
+        if model:
+            return model.query.get(self.product_id)
+        return None
+
+
+
+
 class Report(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date_generated = db.Column(db.DateTime, nullable=False, default=datetime.utcnow())

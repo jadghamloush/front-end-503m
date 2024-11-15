@@ -4,12 +4,14 @@ from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
-# from flask_wtf.csrf import CSRFProtect
+from flask_wtf import CSRFProtect
+from flask import render_template
 
 db = SQLAlchemy()
 
 def create_app():
     app = Flask(__name__, template_folder='templates')
+    csrf = CSRFProtect(app)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///C:/Users/jad/Desktop/503m-project/front-end-503m/dbapplication/testdb.db'
     app.secret_key = 'Some Key'
     app.config['SECRET_KEY'] = 'tQa$L5Cu6^*yu"V'
